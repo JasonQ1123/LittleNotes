@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  nickname     String
+  passwordHash String
+  spaceId      String?
+  space        Space?   @relation(fields: [spaceId], references: [id])
+  sessions     Session[]
+  createdAt    DateTime @default(now())
+  @@index([spaceId])
+}
+
+model Session {
+  tokenHash String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model Space {
+  id          String       @id @default(cuid())
+  name        String
+  members     User[]
+  invitations Invitation[]
+  records     Record[]
+  createdAt   DateTime     @default(now())
+}
+
+model Invitation {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  spaceId    String
+  space      Space    @relation(fields: [spaceId], references: [id])
+  creatorId  String
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  @@index([spaceId])
+}
+
+model Record {
+  id              String           @id @default(cuid())
+  spaceId         String
+  space           Space            @relation(fields: [spaceId], references: [id])
+  authorId        String
+  title           String
+  occurredAt      DateTime         @default(now())
+  description     String           @default("")
+  category        String           @default("其他")
+  tagsJson        String           @default("[]")
+  status          String           @default("draft")
+  revision        Int              @default(1)
+  perspectives    Perspective[]
+  agreements      Agreement[]
+  reconciliations Reconciliation[]
+  archiveVotes    ArchiveVote[]
+  relatedTo       RecordLink[]     @relation("LinkSource")
+  relatedFrom     RecordLink[]     @relation("LinkTarget")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  @@index([spaceId, occurredAt])
+  @@index([spaceId, status])
+}
+
+model Perspective {
+  id            String   @id @default(cuid())
+  recordId      String
+  record        Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  userId        String
+  draftJson     String   @default("{}")
+  publishedJson String?
+  publishedAt   DateTime?
+  revision      Int      @default(1)
+  updatedAt     DateTime @updatedAt
+  @@unique([recordId, userId])
+}
+
+model Agreement {
+  id             String                  @id @default(cuid())
+  recordId       String
+  record         Record                  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  version        Int
+  status         String                  @default("pending")
+  understanding  String
+  actionsJson    String
+  criteria       String
+  requestedDueAt DateTime?
+  proposedById   String
+  activatedAt    DateTime?
+  confirmations  AgreementConfirmation[]
+  cycles         ReviewCycle[]
+  createdAt      DateTime                @default(now())
+  @@unique([recordId, version])
+}
+
+model AgreementConfirmation {
+  agreementId String
+  agreement   Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  userId      String
+  confirmedAt DateTime  @default(now())
+  @@id([agreementId, userId])
+}
+
+model ReviewCycle {
+  id          String    @id @default(cuid())
+  agreementId String
+  agreement   Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  number      Int
+  dueAt       DateTime
+  reviews     Review[]
+  createdAt   DateTime  @default(now())
+  @@unique([agreementId, number])
+}
+
+model Review {
+  id          String      @id @default(cuid())
+  cycleId     String
+  cycle       ReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  userId      String
+  rating      String
+  achieved    String
+  example     String      @default("")
+  remaining   String      @default("")
+  adjustments String      @default("")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  @@unique([cycleId, userId])
+}
+
+model Reconciliation {
+  recordId String
+  record   Record  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  userId   String
+  value    Boolean @default(true)
+  @@id([recordId, userId])
+}
+
+model ArchiveVote {
+  recordId String
+  record   Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  userId   String
+  @@id([recordId, userId])
+}
+
+model RecordLink {
+  recordId  String
+  relatedId String
+  record    Record @relation("LinkSource", fields: [recordId], references: [id], onDelete: Cascade)
+  related   Record @relation("LinkTarget", fields: [relatedId], references: [id], onDelete: Cascade)
+  @@id([recordId, relatedId])
+}

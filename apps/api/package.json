@@ -1,0 +1,37 @@
+{
+  "name": "@paper/api",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "node scripts/init-database.cjs && prisma migrate deploy",
+    "test": "node -r ts-node/register --test --test-concurrency=1 test/*.test.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.13",
+    "@nestjs/core": "^11.1.13",
+    "@nestjs/platform-express": "^11.1.13",
+    "@nestjs/swagger": "^11.2.6",
+    "@prisma/client": "6.19.2",
+    "argon2": "^0.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "helmet": "^8.1.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.0",
+    "@types/supertest": "^6.0.3",
+    "prisma": "6.19.2",
+    "supertest": "^7.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  }
+}

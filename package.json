@@ -1,0 +1,18 @@
+{
+  "name": "little-notes",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,magenta \"pnpm --filter @paper/api dev\" \"pnpm --filter @paper/web dev\"",
+    "setup": "node scripts/init-env.mjs && pnpm --filter @paper/api db:generate && pnpm --filter @paper/api db:migrate",
+    "build": "pnpm --filter @paper/api build && pnpm --filter @paper/web build",
+    "test": "pnpm --filter @paper/api test",
+    "test:e2e": "pnpm build && playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.58.2",
+    "concurrently": "^9.2.1",
+    "prettier": "^3.9.6"
+  }
+}
