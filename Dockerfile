@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g pnpm@11.22.0
@@ -11,7 +11,7 @@ RUN pnpm install --frozen-lockfile --network-concurrency=4 --child-concurrency=1
 COPY . .
 RUN pnpm --filter @paper/api db:postgres:generate && pnpm build
 
-FROM node:24-bookworm-slim AS api
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS api
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -23,6 +23,6 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 NODE_OPTIONS=--max-old-space-size
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
 
-FROM caddy:2-alpine AS web
+FROM public.ecr.aws/docker/library/caddy:2-alpine AS web
 COPY --from=build /app/apps/web/dist /srv
 COPY deploy/Caddyfile /etc/caddy/Caddyfile

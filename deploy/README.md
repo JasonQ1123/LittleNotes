@@ -48,6 +48,17 @@ curl --fail http://127.0.0.1:8080/api/health
 
 如果 Docker 下载超时，脚本尚未完成；这不代表应用故障。不要发送 `deploy/.env`、SSH 私钥或完整 `docker compose config` 输出，这些内容可能包含密码。
 
+基础镜像使用 Docker 官方在 [Amazon ECR Public 发布的镜像](https://aws.amazon.com/blogs/containers/docker-official-images-now-available-on-amazon-elastic-container-registry-public/)，地址前缀为 `public.ecr.aws/docker/library/`，覆盖 Node.js、Caddy 和 PostgreSQL。此入口需要服务器能够访问 Amazon ECR Public 及其镜像层下载地址。
+
+如果旧版本出现 `registry-1.docker.io ... connection refused`，说明尚未开始应用构建，应先更换旧部署文件中的镜像地址。不要把报错中的 IP 写入 hosts，也不要关闭 TLS 验证。可以先检查入口，再用 Docker 验证实际镜像拉取：
+
+```bash
+curl -I --connect-timeout 10 --max-time 20 https://public.ecr.aws/v2/
+sudo docker pull public.ecr.aws/docker/library/node:24-bookworm-slim
+```
+
+第一条返回 `401` 及 `www-authenticate` 头是正常的镜像仓库鉴权响应；第二条成功才说明 Docker 能完成鉴权和镜像层下载。若日志仍出现 `docker.io/library/node` 或 `docker.io/library/caddy`，请检查服务器是否仍在使用旧版 Dockerfile。
+
 ## 3. 备案通过后：启用域名和 HTTPS
 
 先完成这几项：

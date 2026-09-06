@@ -24,7 +24,7 @@ x-api: &api
 
 services:
   db:
-    image: postgres:16-bookworm
+    image: public.ecr.aws/docker/library/postgres:16-bookworm
     restart: unless-stopped
     environment:
       POSTGRES_DB: littlenotes
