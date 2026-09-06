@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../components/AppIcon.vue';
 import { api, useTask } from '../api';
@@ -7,11 +7,15 @@ import { useSession } from '../store';
 const register = ref(false);
 const username = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const nickname = ref('');
 const { busy, run } = useTask();
 const session = useSession();
 const route = useRoute();
 const router = useRouter();
+watch(register, () => {
+  showPassword.value = false;
+});
 async function submit() {
   await run(async () => {
     await api(`/auth/${register.value ? 'register' : 'login'}`, {
@@ -92,17 +96,34 @@ async function submit() {
             maxlength="32"
             pattern="[a-zA-Z0-9_]{3,32}"
             required
-            placeholder="3–32 位字母、数字或下划线" /></label
-        ><label class="field"
-          >密码<input
-            v-model="password"
-            :autocomplete="register ? 'new-password' : 'current-password'"
-            type="password"
-            minlength="8"
-            maxlength="128"
-            required
-            placeholder="至少 8 位，留好这把小钥匙" /></label
-        ><button class="btn primary full" :disabled="busy">
+            placeholder="3–32 位字母、数字或下划线"
+        /></label>
+        <div class="field">
+          <label for="auth-password">密码</label>
+          <div class="password-input">
+            <input
+              id="auth-password"
+              v-model="password"
+              :autocomplete="register ? 'new-password' : 'current-password'"
+              :type="showPassword ? 'text' : 'password'"
+              minlength="8"
+              maxlength="128"
+              required
+              placeholder="至少 8 位，留好这把小钥匙"
+            />
+            <button
+              type="button"
+              class="icon-button password-toggle"
+              :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+              :title="showPassword ? '隐藏密码' : '显示密码'"
+              aria-controls="auth-password"
+              @click="showPassword = !showPassword"
+            >
+              <AppIcon :name="showPassword ? 'eyeOff' : 'eye'" :size="18" />
+            </button>
+          </div>
+        </div>
+        <button class="btn primary full" :disabled="busy">
           {{ busy ? '请稍等…' : register ? '开启我们的小故事' : '回到小纸条'
           }}<AppIcon name="arrow" :size="18" />
         </button>

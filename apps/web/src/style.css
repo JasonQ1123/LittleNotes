@@ -2067,6 +2067,26 @@ strong {
   font-size: 12px;
   padding: 13px;
 }
+.password-input {
+  position: relative;
+}
+.auth-form .password-input input {
+  padding-right: 49px;
+}
+.password-input input::-ms-reveal {
+  display: none;
+}
+.password-toggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  bottom: 4px;
+  width: 38px;
+  color: var(--sage-dark);
+}
+.password-toggle:focus-visible {
+  outline-offset: 0;
+}
 .auth-form > .btn {
   margin-top: 7px;
   min-height: 46px;
