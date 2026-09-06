@@ -44,6 +44,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash deploy/deploy.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node .github/scripts/deployment-smoke.mjs
+      - name: 校验正式 HTTPS 配置（不开放公网）
+        run: |
+          docker compose --env-file deploy/.env -f deploy/compose.yaml run --rm --no-deps \
+            -e SITE_ADDRESS=https://littlenotes.cn -e ACME_EMAIL=test@example.com \
+            web caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - run: |
           bash deploy/backup.sh
           backup=$(find backups -name '*.dump' -type f | head -n 1)
