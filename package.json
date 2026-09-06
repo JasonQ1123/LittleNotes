@@ -9,6 +9,7 @@
     "test": "pnpm --filter @paper/api test",
     "test:postgres": "node scripts/test-postgres.mjs",
     "db:postgres:sync": "node scripts/sync-postgres.mjs",
+    "package:deploy": "node scripts/package-deploy.mjs",
     "test:e2e": "pnpm build && playwright test"
   },
   "devDependencies": {

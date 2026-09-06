@@ -6,19 +6,23 @@
 
 ## 1. 备案期间：只做服务器内部验证
 
-在阿里云 Workbench 终端按顺序执行。首次安装需要从 Ubuntu、Docker、npm 和 GitHub 下载文件；如果下载失败，保留具体错误，不要换用不明镜像源或忽略签名验证。
+推荐使用源码部署包，服务器无需登录 GitHub。开发机提交代码后执行 `pnpm package:deploy`，会在 `.cache/releases` 生成 `littlenotes-deploy.tar.gz` 和 SHA256 校验文件。归档仅包含 Git 已提交的文件，不包含本地数据库、实际环境配置和账号密码。
+
+通过阿里云 Workbench 的文件管理，把部署包上传为 `/tmp/littlenotes-deploy.tar.gz`。如果文件管理默认上传到登录用户的主目录，使用页面显示的实际完整路径替换下面的 `/tmp/littlenotes-deploy.tar.gz`。
+
+在 Workbench 终端按顺序执行。首次安装需要从 Ubuntu、Docker 和 npm 下载文件；如果下载失败，保留具体错误，不要换用不明镜像源或忽略签名验证。
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git ca-certificates curl openssl
-sudo git clone https://github.com/JasonQ1123/LittleNotes.git /opt/littlenotes
+sudo apt-get install -y ca-certificates curl openssl
+sudo tar --keep-old-files -xzf /tmp/littlenotes-deploy.tar.gz -C /opt
 cd /opt/littlenotes
 sudo bash deploy/install-docker.sh
 sudo bash deploy/deploy.sh
 sudo bash deploy/install-backup-timer.sh
 ```
 
-如果目录已经存在，先确认它是本项目，再进入目录执行 `sudo git pull --ff-only`，不要覆盖已有目录。项目路径统一使用 `/opt/littlenotes`，方便定时备份定位。
+初次解压使用 `--keep-old-files`，如果目录已有同名文件会报错，请先确认是否已经安装，不要直接覆盖已有目录。项目路径统一使用 `/opt/littlenotes`，方便定时备份定位。通过源码包安装的目录没有 `.git`，后续也通过新的部署包更新。若服务器已配置 GitHub 仓库的只读访问凭据，也可以用 `git clone` 获取代码。
 
 首次部署会：
 
@@ -109,11 +113,16 @@ sudo bash deploy/verify-backup.sh /opt/littlenotes/backups/实际文件名.dump
 
 ## 5. 更新和验收
 
+源码包安装：上传新的已提交版本后，先做备份，再覆盖项目代码。部署包不包含 `.env`、公网启用标记和数据库卷，因此会保留原配置及数据。更新前核对包中的顶层目录仍是 `littlenotes/`。
+
 ```bash
 cd /opt/littlenotes
-sudo git pull --ff-only
+sudo bash deploy/backup.sh
+sudo tar -xzf /tmp/littlenotes-deploy.tar.gz -C /opt
 sudo bash deploy/deploy.sh
 ```
+
+使用 Git 克隆安装的服务器，在维护窗口执行 `sudo git pull --ff-only` 后运行 `sudo bash deploy/deploy.sh`。不要在源码包目录执行 `git pull`。
 
 两种数据库的迁移历史互相独立。修改模型时先改 `apps/api/prisma/schema.prisma`，执行 `pnpm db:postgres:sync`，分别编写和检查两种数据库的增量迁移，不能修改已经应用过的初始迁移。
 
