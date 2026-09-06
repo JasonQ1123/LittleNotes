@@ -7,7 +7,9 @@ if [[ -n "$(dc ps --status running -q db)" ]]; then
 fi
 # The 2 GB server builds during a maintenance window to leave enough memory.
 dc stop web api
-dc --parallel 1 build api web
+# Separate commands also serialize Compose versions that delegate multi-target builds to Bake.
+dc build api
+dc build web
 dc up -d --wait db
 dc run --rm --no-deps migrate
 dc up -d --no-deps --wait api web

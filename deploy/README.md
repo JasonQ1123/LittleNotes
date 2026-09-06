@@ -59,6 +59,21 @@ sudo docker pull public.ecr.aws/docker/library/node:24-bookworm-slim
 
 第一条返回 `401` 及 `www-authenticate` 头是正常的镜像仓库鉴权响应；第二条成功才说明 Docker 能完成鉴权和镜像层下载。若日志仍出现 `docker.io/library/node` 或 `docker.io/library/caddy`，请检查服务器是否仍在使用旧版 Dockerfile。
 
+构建时的 Debian 软件源使用 `https://mirrors.aliyun.com/debian` 和对应的 `debian-security`，保留 Debian 的包签名校验。精简基础镜像尚未安装系统证书时，先从 Node 内置的可信根证书生成临时 CA 文件，以便通过 HTTPS 安装系统证书，全程保持 TLS 校验。网络请求设置 30 秒无响应超时和最多 3 次重试。
+
+构建与运行阶段共享同一份系统依赖层，OpenSSL 和 CA 证书只安装一次。部署脚本分别执行 API 和网页镜像构建，后者复用前者的构建缓存，避免部分 Compose 版本同时构建多个目标。若旧日志反复出现 `deb.debian.org`、`Ign:` 或很低的下载速率，请更新 Dockerfile 和部署脚本；不要在旧构建尚未停止时启动第二份部署。
+
+Workbench 可关闭后继续运行的部署方式：
+
+```bash
+sudo systemd-run --unit=littlenotes-deploy --collect \
+  --working-directory=/opt/littlenotes \
+  /bin/bash -c 'bash deploy/deploy.sh && bash deploy/backup.sh'
+sudo journalctl -u littlenotes-deploy.service -n 30 -f
+```
+
+`Running as unit` 只表示任务已经启动，仍以健康检查和备份日志为完成标志。查看日志时按 Ctrl+C 不会停止后台部署。需要替换正在构建的旧文件时，先用 `sudo systemctl stop littlenotes-deploy.service` 停止这次构建任务，再更新文件并重新启动；该命令不会删除代码、镜像或数据库卷。
+
 ## 3. 备案通过后：启用域名和 HTTPS
 
 先完成这几项：
