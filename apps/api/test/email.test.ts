@@ -13,7 +13,7 @@ import type { Response } from 'express';
 import { createApp } from '../src/main';
 import { AuthService, hashToken } from '../src/auth';
 import { Database } from '../src/database';
-import { EmailService } from '../src/email';
+import { EmailService, type MockMessage } from '../src/email';
 import { emailProof } from './email-helper';
 
 describe('邮箱验证、找回密码与认证版本', { concurrency: false }, () => {
@@ -106,6 +106,57 @@ describe('邮箱验证、找回密码与认证版本', { concurrency: false }, (
   });
   after(async () => {
     await app?.close();
+  });
+
+  it('关闭应用先完成在途邮件任务，再断开数据库', async (context) => {
+    const closingApp = await createApp(true);
+    const closingDb = closingApp.get(Database);
+    const closingMail = closingApp.get(EmailService);
+    await closingMail.onModuleDestroy(); // Use manual draining to control the in-flight send.
+    let release!: () => void;
+    let started!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sending = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const deliver = closingMail.deliver.bind(closingMail);
+    context.mock.method(closingMail, 'deliver', async (message: MockMessage) => {
+      started();
+      await held;
+      await deliver(message);
+    });
+    const result = await request(closingApp.getHttpServer())
+      .post('/api/auth/register/code')
+      .send({ email: newEmail() })
+      .expect(200);
+    const draining = closingMail.drain();
+    await sending;
+    let disconnected = false;
+    const disconnect = closingDb.$disconnect.bind(closingDb);
+    closingDb.$disconnect = async () => {
+      disconnected = true;
+      // Keep a failing implementation from actually cutting off the held query during cleanup.
+      await draining.catch(() => undefined);
+      await disconnect();
+    };
+    const closing = closingApp.close();
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(disconnected, false, 'Database must remain available until mail work finishes');
+      release();
+      await draining;
+      await closing;
+      assert.equal(disconnected, true);
+      assert.equal(
+        (await db.emailJob.findUniqueOrThrow({ where: { id: result.body.challengeId } })).status,
+        'sent',
+      );
+    } finally {
+      release();
+      await Promise.allSettled([draining, closing]);
+    }
   });
 
   it('只有通过验证才注册；邮箱规范化、用途摘要和资料输出保持隔离', async () => {

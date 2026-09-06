@@ -1,8 +1,8 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class Database extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class Database extends PrismaClient implements OnModuleInit, OnApplicationShutdown {
   private tail: Promise<unknown> = Promise.resolve();
   private readonly postgres = /^postgres(ql)?:/.test(process.env.DATABASE_URL || '');
 
@@ -13,7 +13,9 @@ export class Database extends PrismaClient implements OnModuleInit, OnModuleDest
   async onModuleInit() {
     await this.$connect();
   }
-  async onModuleDestroy() {
+  // Module destroy hooks run concurrently. Wait until workers drain and HTTP closes
+  // before disconnecting the shared database in the final shutdown phase.
+  async onApplicationShutdown() {
     await this.$disconnect();
   }
 
