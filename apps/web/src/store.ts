@@ -10,7 +10,9 @@ export const useSession = defineStore('session', () => {
   async function refresh() {
     try {
       user.value = await api<User>('/auth/me');
-      space.value = await api<Space | null>('/spaces/current');
+      space.value = user.value.requiresEmailBinding
+        ? null
+        : await api<Space | null>('/spaces/current');
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401) throw error;
       user.value = null;

@@ -13,6 +13,9 @@ model User {
   nickname     String
   avatarKey    String?
   passwordHash String
+  email        String?  @unique
+  emailVerifiedAt DateTime?
+  authVersion  Int      @default(0)
   spaceId      String?
   space        Space?   @relation(fields: [spaceId], references: [id])
   sessions     Session[]
@@ -32,6 +35,40 @@ model PasswordChangeLimit {
   key       String   @id
   count     Int
   expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model EmailChallenge {
+  id          String   @id
+  email       String
+  purpose     String
+  userId      String?
+  authVersion Int?
+  digest      String?
+  attempts    Int      @default(0)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime @default(now())
+  job         EmailJob?
+  @@index([email, purpose])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailJob {
+  id          String   @id
+  challenge   EmailChallenge @relation(fields: [id], references: [id], onDelete: Cascade)
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  @@index([status, createdAt])
+}
+
+model EmailLimit {
+  key         String   @id
+  count       Int
+  expiresAt   DateTime
   @@index([expiresAt])
 }
 

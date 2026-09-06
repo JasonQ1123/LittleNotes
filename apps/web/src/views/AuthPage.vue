@@ -5,6 +5,9 @@ import AppIcon from '../components/AppIcon.vue';
 import { api, useTask } from '../api';
 import { useSession } from '../store';
 import { isNewPasswordValid, NEW_PASSWORD_HINT, NEW_PASSWORD_PATTERN } from '../password';
+import EmailVerification from '../components/EmailVerification.vue';
+import { safeRedirect } from '../router';
+const verification = ref({ email: '', challengeId: '', code: '' });
 const register = ref(false);
 const username = ref('');
 const password = ref('');
@@ -26,16 +29,11 @@ async function submit() {
       body: {
         username: username.value,
         password: password.value,
-        ...(register.value ? { nickname: nickname.value } : {}),
+        ...(register.value ? { nickname: nickname.value, ...verification.value } : {}),
       },
     });
     await session.refresh();
-    const next =
-      typeof route.query.redirect === 'string' &&
-      route.query.redirect.startsWith('/') &&
-      !route.query.redirect.startsWith('//')
-        ? route.query.redirect
-        : '/';
+    const next = safeRedirect(route.query.redirect);
     await router.replace(next);
   });
 }
@@ -86,6 +84,9 @@ async function submit() {
         <div v-if="route.query.passwordChanged === '1'" class="notice" role="status">
           密码已修改，所有设备已退出登录。请使用新密码重新登录。
         </div>
+        <div v-if="route.query.emailChanged === '1'" class="notice" role="status">
+          邮箱已更换，所有设备已退出登录。请使用用户名和密码重新登录。
+        </div>
         <div v-if="route.query.redirect" class="notice">登录后，我们会带你继续打开这份小纸条。</div>
         <label v-if="register" class="field"
           >怎么称呼你<input
@@ -133,10 +134,22 @@ async function submit() {
           </div>
           <small v-if="register" id="auth-password-hint">{{ NEW_PASSWORD_HINT }}</small>
         </div>
-        <button class="btn primary full" :disabled="busy">
+        <EmailVerification
+          v-if="register"
+          v-model="verification"
+          endpoint="/auth/register/code"
+          :disabled="busy"
+        />
+        <button
+          class="btn primary full"
+          :disabled="busy || (register && !verification.challengeId)"
+        >
           {{ busy ? '请稍等…' : register ? '开启我们的小故事' : '回到小纸条'
           }}<AppIcon name="arrow" :size="18" />
         </button>
+        <RouterLink v-if="!register" class="recovery-link" to="/forgot-password"
+          >忘记密码？</RouterLink
+        >
         <p class="auth-footnote"><AppIcon name="shield" :size="16" />私密草稿由你决定何时分享</p>
       </form>
     </section>

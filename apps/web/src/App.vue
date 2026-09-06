@@ -26,8 +26,17 @@ function expired() {
   notify('登录已过期，请重新登录', true);
   router.replace({ path: '/login', query: { redirect: route.fullPath } });
 }
+async function bindingRequired() {
+  try {
+    await session.refresh();
+    await router.replace({ path: '/bind-email', query: { redirect: route.fullPath } });
+  } catch {
+    notify('暂时无法确认账号状态，请刷新重试', true);
+  }
+}
 onMounted(() => {
   window.addEventListener('session-expired', expired);
+  window.addEventListener('email-binding-required', bindingRequired);
   api<{ icpNumber?: string }>('/health')
     .then((site) => {
       icpNumber.value = site.icpNumber || '';
@@ -36,11 +45,14 @@ onMounted(() => {
       /* The optional site footer does not interrupt the current page. */
     });
 });
-onBeforeUnmount(() => window.removeEventListener('session-expired', expired));
+onBeforeUnmount(() => {
+  window.removeEventListener('session-expired', expired);
+  window.removeEventListener('email-binding-required', bindingRequired);
+});
 </script>
 <template>
   <a class="skip-link" href="#main-content">跳到主要内容</a>
-  <div v-if="route.meta.public" class="public-layout"><RouterView /></div>
+  <div v-if="route.meta.public || route.meta.standalone" class="public-layout"><RouterView /></div>
   <div v-else class="app-layout">
     <aside class="sidebar">
       <RouterLink to="/" class="brand"
@@ -108,7 +120,11 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired));
       >
     </nav>
   </div>
-  <footer v-if="icpNumber" class="site-footer" :class="{ 'with-navigation': !route.meta.public }">
+  <footer
+    v-if="icpNumber"
+    class="site-footer"
+    :class="{ 'with-navigation': !route.meta.public && !route.meta.standalone }"
+  >
     <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{
       icpNumber
     }}</a>

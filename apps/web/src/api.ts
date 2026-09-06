@@ -4,6 +4,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public retryAfter?: number,
   ) {
     super(message);
   }
@@ -33,9 +34,20 @@ export async function api<T>(
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 401 && (!path.startsWith('/auth/') || path === '/auth/password/change'))
+    if (data?.code === 'EMAIL_BINDING_REQUIRED')
+      window.dispatchEvent(new Event('email-binding-required'));
+    if (
+      response.status === 401 &&
+      (!path.startsWith('/auth/') ||
+        path === '/auth/password/change' ||
+        path.startsWith('/auth/email'))
+    )
       window.dispatchEvent(new Event('session-expired'));
-    throw new ApiError(data?.message || '暂时没有完成，请稍后重试', response.status);
+    throw new ApiError(
+      data?.message || '暂时没有完成，请稍后重试',
+      response.status,
+      data?.retryAfter,
+    );
   }
   return data as T;
 }

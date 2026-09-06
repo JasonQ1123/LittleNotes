@@ -18,7 +18,8 @@ import { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Database } from './database';
-import { AuthController, AuthService, Public, SessionGuard } from './auth';
+import { AuthController, AuthService, MockMailController, Public, SessionGuard } from './auth';
+import { EmailService } from './email';
 import { SpacesController, SpacesService } from './spaces';
 import { RecordsController, RecordsService } from './records';
 import { AgreementsController, AgreementsService } from './agreements';
@@ -28,13 +29,16 @@ import { ProfilesController, ProfilesService } from './profiles';
 
 @Controller('health')
 class HealthController {
-  constructor(private db: Database) {}
+  constructor(
+    private db: Database,
+    private email: EmailService,
+  ) {}
   @Public() @Get() async health() {
     await this.db.$queryRaw`SELECT 1`;
     return {
       ok: true,
       name: '小纸条',
-      features: { ai: false },
+      features: { ai: false, mockEmail: this.email.mode === 'mock' },
       icpNumber: process.env.ICP_NUMBER || '',
     };
   }
@@ -70,6 +74,7 @@ class Errors implements ExceptionFilter {
   controllers: [
     HealthController,
     AuthController,
+    MockMailController,
     SpacesController,
     RecordsController,
     AgreementsController,
@@ -80,6 +85,7 @@ class Errors implements ExceptionFilter {
   providers: [
     Database,
     AuthService,
+    EmailService,
     SpacesService,
     RecordsService,
     AgreementsService,

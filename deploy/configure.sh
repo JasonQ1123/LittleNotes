@@ -7,6 +7,7 @@ if [[ -e .env ]]; then
 fi
 umask 077
 password="$(openssl rand -hex 32)"
+email_secret="$(openssl rand -hex 32)"
 set -o noclobber
 cat > .env <<EOF
 POSTGRES_PASSWORD=$password
@@ -14,5 +15,9 @@ WEB_ORIGIN=https://littlenotes.cn
 DOMAIN=littlenotes.cn
 ACME_EMAIL=
 ICP_NUMBER=
+SMTP_USER=
+SMTP_AUTH_CODE=
+EMAIL_HMAC_SECRET=$email_secret
+EMAIL_SMTP_VERIFIED=0
 EOF
 echo '已生成 deploy/.env；密码仅保存在服务器，本次部署使用新的空数据库。'

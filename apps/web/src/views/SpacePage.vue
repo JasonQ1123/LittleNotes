@@ -146,6 +146,8 @@ async function logout() {
       </section>
       <section class="panel settings-card">
         <h2>账号安全</h2>
+        <p class="security-email">找回邮箱：{{ session.user?.maskedEmail }}</p>
+        <RouterLink to="/account/email" class="btn secondary full">更换邮箱</RouterLink>
         <button type="button" class="btn secondary full" @click="changingPassword = true">
           <AppIcon name="lock" :size="17" />修改密码
         </button>

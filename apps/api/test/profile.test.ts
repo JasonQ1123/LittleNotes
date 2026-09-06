@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 import type { INestApplication } from '@nestjs/common';
 import { createApp } from '../src/main';
 import { Database } from '../src/database';
+import { emailProof } from './email-helper';
 
 describe('个人资料和头像', { concurrency: false }, () => {
   let app: INestApplication;
@@ -53,7 +54,12 @@ describe('个人资料和头像', { concurrency: false }, () => {
     for (const [i, agent] of [a, b, outsider].entries()) {
       const response = await agent
         .post('/api/auth/register')
-        .send({ username: `profile_${i}`, nickname: `原昵称${i}`, password: 'profile-test-2026' })
+        .send({
+          username: `profile_${i}`,
+          nickname: `原昵称${i}`,
+          password: 'profile-test-2026',
+          ...(await emailProof(app)),
+        })
         .expect(201);
       assert.equal(response.body.avatarUrl, null);
       assert.equal(response.body.avatarKey, undefined);

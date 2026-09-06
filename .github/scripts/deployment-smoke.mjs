@@ -31,16 +31,53 @@ const actor = () => {
 };
 const a = actor();
 const b = actor();
-await a('/auth/register', {
-  username: `deploy_a_${suffix}`,
-  nickname: '演练甲',
-  password: `Aa1${randomUUID().replaceAll('-', '').slice(0, 29)}`,
-});
-await b('/auth/register', {
-  username: `deploy_b_${suffix}`,
-  nickname: '演练乙',
-  password: `Aa1${randomUUID().replaceAll('-', '').slice(0, 29)}`,
-});
+// Production containers forbid mock email. Seed already verified CI-only accounts directly;
+// API and browser suites separately exercise registration with the mock inbox.
+const seeded = [
+  {
+    username: `deploy_a_${suffix}`,
+    nickname: '演练甲',
+    password: `Aa1${randomUUID().replaceAll('-', '').slice(0, 29)}`,
+  },
+  {
+    username: `deploy_b_${suffix}`,
+    nickname: '演练乙',
+    password: `Aa1${randomUUID().replaceAll('-', '').slice(0, 29)}`,
+  },
+];
+execFileSync(
+  'docker',
+  [
+    'compose',
+    '--env-file',
+    'deploy/.env',
+    '-f',
+    'deploy/compose.yaml',
+    'exec',
+    '-T',
+    'api',
+    'node',
+    '-e',
+    `
+  const { PrismaClient } = require('@prisma/client');
+  const argon2 = require('argon2');
+  let input = ''; process.stdin.on('data', chunk => input += chunk);
+  process.stdin.on('end', async () => {
+    const db = new PrismaClient();
+    try {
+      for (const item of JSON.parse(input)) await db.user.create({ data: {
+        username: item.username, nickname: item.nickname,
+        passwordHash: await argon2.hash(item.password),
+        email: item.username + '@example.com', emailVerifiedAt: new Date(),
+      } });
+    } finally { await db.$disconnect(); }
+  });
+`,
+  ],
+  { input: JSON.stringify(seeded), stdio: ['pipe', 'pipe', 'pipe'] },
+);
+await a('/auth/login', { username: seeded[0].username, password: seeded[0].password });
+await b('/auth/login', { username: seeded[1].username, password: seeded[1].password });
 await a('/spaces', { name: '部署恢复演练空间' });
 const invitation = await a('/spaces/invitations', {});
 await b('/spaces/invitations/accept', { token: invitation.token });

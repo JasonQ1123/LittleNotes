@@ -10,6 +10,8 @@ import { PrismaClient } from '@prisma/client';
 import { createApp } from '../src/main';
 import { Database } from '../src/database';
 import { hashToken } from '../src/auth';
+import { emailProof } from './email-helper';
+import { EmailService } from '../src/email';
 
 type Agent = ReturnType<typeof request.agent>;
 describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency: false }, () => {
@@ -73,6 +75,7 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
         .post('/api/auth/register')
         .send({
           username: `person_${index}`,
+          ...(await emailProof(app)),
           nickname: ['小林', '小安', '阿晴', '阿远', '访客'][index],
           password: 'paper-test-2026',
         })
@@ -99,7 +102,12 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
       .expect(400);
     await a
       .post('/api/auth/register')
-      .send({ username: 'PERSON_0', nickname: '重复', password: 'paper-test-2026' })
+      .send({
+        username: 'PERSON_0',
+        nickname: '重复',
+        password: 'paper-test-2026',
+        ...(await emailProof(app)),
+      })
       .expect(409);
     await a
       .post('/api/spaces')
@@ -393,6 +401,7 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
         .post('/api/auth/register')
         .send({
           username: `race_guest_${index}`,
+          ...(await emailProof(app)),
           nickname: `候选${index}`,
           password: 'paper-test-2026',
         })
@@ -484,7 +493,15 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
     '生产模式使用安全 Cookie、隐藏文档，并按可信代理传递的真实地址限流',
     { skip: !process.env.TEST_DATABASE_URL },
     async () => {
-      const keys = ['NODE_ENV', 'WEB_ORIGIN', 'TRUST_PROXY_IP', 'ICP_NUMBER'] as const;
+      const keys = [
+        'NODE_ENV',
+        'WEB_ORIGIN',
+        'TRUST_PROXY_IP',
+        'ICP_NUMBER',
+        'EMAIL_DELIVERY',
+        'SMTP_USER',
+        'SMTP_AUTH_CODE',
+      ] as const;
       const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
       let production: INestApplication | undefined;
       try {
@@ -494,9 +511,15 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
         process.env.WEB_ORIGIN = 'https://littlenotes.cn';
         process.env.TRUST_PROXY_IP = '127.0.0.1';
         process.env.ICP_NUMBER = '测试备案号12345678号-1';
+        process.env.EMAIL_DELIVERY = 'smtp';
+        process.env.SMTP_USER = 'ci-unused@163.com';
+        process.env.SMTP_AUTH_CODE = 'ci-only-never-used';
         production = await createApp(true);
+        // This test checks production HTTP policy, never sends real email.
+        await production.get(EmailService).onModuleDestroy();
         const server = production.getHttpServer();
         await request(server).get('/api/docs').expect(404);
+        await request(server).get('/api/dev/mail').expect(404);
         const health = (await request(server).get('/api/health').expect(200)).body;
         assert.equal(health.icpNumber, process.env.ICP_NUMBER);
         const login = await request(server)

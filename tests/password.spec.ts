@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { apiEmailProof, fillEmailVerification } from './email-helper';
 
 test('修改密码、退出所有设备并用新密码重新登录', async ({ page, browser }, testInfo) => {
   const username = `pwd_${testInfo.project.name}_${Date.now().toString(36)}`;
@@ -8,7 +9,12 @@ test('修改密码、退出所有设备并用新密码重新登录', async ({ pa
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   const registration = await page.request.post('/api/auth/register', {
-    data: { username, nickname: '账号安全测试', password: oldPassword },
+    data: {
+      username,
+      nickname: '账号安全测试',
+      password: oldPassword,
+      ...(await apiEmailProof(page.request, `${username}@example.com`)),
+    },
   });
   expect(registration.status()).toBe(201);
   const second = await browser.newContext({ baseURL: 'http://127.0.0.1:5174' });
@@ -141,6 +147,7 @@ test('注册与登录使用各自的密码规则，注册校验失败不发送�
     .getByLabel('用户名', { exact: true })
     .fill(`rule_${testInfo.project.name}_${Date.now().toString(36)}`);
   await expect(password).toHaveAttribute('maxlength', '32');
+  await fillEmailVerification(page, `policy-${testInfo.project.name}-${Date.now()}@example.com`);
   await expect(page.locator('#auth-password-hint')).toHaveText(
     '8–32 位，必须同时包含英文字母和数字',
   );

@@ -29,6 +29,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run setup
       - run: pnpm build && pnpm test
+      - run: pnpm test:deploy
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:postgres --e2e
         env:
@@ -43,6 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: 临时容器配置（不发送真实邮件）
+        run: |
+          bash deploy/configure.sh
+          sed -i 's/^SMTP_USER=.*/SMTP_USER=ci-unused@163.com/; s/^SMTP_AUTH_CODE=.*/SMTP_AUTH_CODE=ci-never-send/; s/^EMAIL_SMTP_VERIFIED=.*/EMAIL_SMTP_VERIFIED=1/' deploy/.env
       - run: bash deploy/deploy.sh
       - uses: actions/setup-node@v4
         with:

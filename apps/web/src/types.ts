@@ -1,4 +1,6 @@
 export interface User {
+  requiresEmailBinding: boolean;
+  maskedEmail: string | null;
   id: string;
   username: string;
   nickname: string;

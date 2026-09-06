@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { fillEmailVerification } from './email-helper';
 
 async function register(page: Page, username: string, nickname: string) {
   await page.goto('/login');
@@ -7,6 +8,7 @@ async function register(page: Page, username: string, nickname: string) {
   await page.getByLabel('怎么称呼你').fill(nickname);
   await page.getByLabel('用户名', { exact: true }).fill(username);
   await page.getByLabel('密码', { exact: true }).fill('paper-browser-2026');
+  await fillEmailVerification(page, `${username}@example.com`);
   await page.getByRole('button', { name: '开启我们的小故事' }).click();
   await expect(page).toHaveURL(/\/$/);
 }

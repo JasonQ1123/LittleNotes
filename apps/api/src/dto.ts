@@ -8,6 +8,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsEmail,
   IsISO8601,
   IsNotEmpty,
   IsString,
@@ -57,6 +58,41 @@ class UsernameDto {
   @Matches(/^[a-zA-Z0-9_]{3,32}$/, { message: '用户名需为 3–32 位字母、数字或下划线' })
   username!: string;
 }
+function emailAddress() {
+  return applyDecorators(
+    ApiProperty(),
+    Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value)),
+    IsString(),
+    IsEmail({}, { message: '请输入有效的邮箱地址' }),
+    MaxLength(254),
+  );
+}
+function challengeId() {
+  return applyDecorators(ApiProperty(), IsString(), Matches(/^[a-f0-9]{64}$/));
+}
+function emailCode() {
+  return applyDecorators(
+    ApiProperty(),
+    IsString(),
+    Matches(/^[0-9]{6}$/, { message: '验证码需为 6 位数字' }),
+  );
+}
+export class EmailCodeDto {
+  @emailAddress() email!: string;
+}
+export class BindEmailCodeDto extends EmailCodeDto {
+  @ApiProperty() @IsString() @MinLength(8) @MaxLength(128) currentPassword!: string;
+}
+export class BindEmailDto extends BindEmailCodeDto {
+  @challengeId() challengeId!: string;
+  @emailCode() code!: string;
+}
+export class ResetPasswordDto extends EmailCodeDto {
+  @challengeId() challengeId!: string;
+  @emailCode() code!: string;
+  @newPassword('新密码') newPassword!: string;
+  @newPassword('确认新密码') confirmPassword!: string;
+}
 export class LoginDto extends UsernameDto {
   // Existing accounts may still use passwords allowed by the original policy.
   @ApiProperty()
@@ -68,6 +104,9 @@ export class LoginDto extends UsernameDto {
 export class RegisterDto extends UsernameDto {
   @newPassword('密码') password!: string;
   @ApiProperty() @trim() @IsString() @IsNotEmpty() @MaxLength(30) nickname!: string;
+  @emailAddress() email!: string;
+  @challengeId() challengeId!: string;
+  @emailCode() code!: string;
 }
 export class UpdateProfileDto {
   @ApiProperty() @trim() @IsString() @IsNotEmpty() @MaxLength(30) nickname!: string;

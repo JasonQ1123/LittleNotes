@@ -12,6 +12,7 @@ import type { Response } from 'express';
 import { createApp } from '../src/main';
 import { Database } from '../src/database';
 import { AuthService, userSelect } from '../src/auth';
+import { emailProof } from './email-helper';
 
 describe('修改密码与会话撤销', { concurrency: false }, () => {
   let app: INestApplication;
@@ -32,6 +33,7 @@ describe('修改密码与会话撤销', { concurrency: false }, () => {
       .post('/api/auth/register')
       .send({
         username,
+        ...(await emailProof(app)),
         nickname: '密码测试',
         password: oldPassword,
       })
@@ -76,6 +78,7 @@ describe('修改密码与会话撤销', { concurrency: false }, () => {
 
   it('新注册要求 8–32 位英文字母和数字组合，允许附加符号', async () => {
     const username = `policy_${++sequence}`;
+    const proof = await emailProof(app);
     for (const password of [
       null,
       '',
@@ -88,14 +91,19 @@ describe('修改密码与会话撤销', { concurrency: false }, () => {
     ]) {
       await request(app.getHttpServer())
         .post('/api/auth/register')
-        .send({ username, nickname: '规则测试', password })
+        .send({ username, nickname: '规则测试', password, ...proof })
         .expect(400);
       assert.equal(await db.user.count({ where: { username } }), 0);
     }
     for (const password of ['abcdefg1', 'ABCDEFG1', `Ab1${'x'.repeat(29)}`, ' Abcd1! ']) {
       const registered = await request(app.getHttpServer())
         .post('/api/auth/register')
-        .send({ username: `policy_${++sequence}`, nickname: '规则测试', password })
+        .send({
+          username: `policy_${++sequence}`,
+          nickname: '规则测试',
+          password,
+          ...(await emailProof(app)),
+        })
         .expect(201);
       const row = await db.user.findUniqueOrThrow({ where: { id: registered.body.id } });
       assert.equal(await argon2.verify(row.passwordHash, password), true);
@@ -112,6 +120,8 @@ describe('修改密码与会话撤销', { concurrency: false }, () => {
           username: `legacy_${++sequence}`,
           nickname: '旧账号',
           passwordHash,
+          email: `legacy_${sequence}@example.com`,
+          emailVerifiedAt: new Date(),
         },
       });
       const agent = request.agent(app.getHttpServer());

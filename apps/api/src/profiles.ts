@@ -20,7 +20,7 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { Response } from 'express';
 import sharp from 'sharp';
-import { Actor, CurrentUser, userSelect, withAvatar } from './auth';
+import { Actor, CurrentUser, authSelect, ownProfile } from './auth';
 import { Database } from './database';
 import { UpdateProfileDto } from './dto';
 
@@ -35,12 +35,12 @@ export class ProfilesService {
   constructor(private db: Database) {}
 
   async update(user: Actor, dto: UpdateProfileDto) {
-    return withAvatar(
+    return ownProfile(
       await this.db.atomic((tx) =>
         tx.user.update({
           where: { id: user.id },
           data: { nickname: dto.nickname },
-          select: userSelect,
+          select: authSelect,
         }),
       ),
     );
@@ -69,10 +69,10 @@ export class ProfilesService {
     await writeFile(destination, output, { flag: 'wx', mode: 0o640 });
     try {
       const updated = await this.db.atomic((tx) =>
-        tx.user.update({ where: { id: user.id }, data: { avatarKey: key }, select: userSelect }),
+        tx.user.update({ where: { id: user.id }, data: { avatarKey: key }, select: authSelect }),
       );
       // Retain old files until the next complete database + avatar backup.
-      return withAvatar(updated);
+      return ownProfile(updated);
     } catch (error) {
       await unlink(destination).catch(() => undefined);
       throw error;
@@ -80,9 +80,9 @@ export class ProfilesService {
   }
 
   async remove(user: Actor) {
-    return withAvatar(
+    return ownProfile(
       await this.db.atomic((tx) =>
-        tx.user.update({ where: { id: user.id }, data: { avatarKey: null }, select: userSelect }),
+        tx.user.update({ where: { id: user.id }, data: { avatarKey: null }, select: authSelect }),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { fillEmailVerification } from './email-helper';
 
 test('编辑昵称、裁剪头像和恢复默认头像', async ({ page }, testInfo) => {
   const errors: string[] = [];
@@ -11,6 +12,7 @@ test('编辑昵称、裁剪头像和恢复默认头像', async ({ page }, testIn
     .getByLabel('用户名', { exact: true })
     .fill(`avatar_${testInfo.project.name}_${Date.now().toString(36)}`);
   await page.getByLabel('密码', { exact: true }).fill('profile-browser-2026');
+  await fillEmailVerification(page, `profile-${testInfo.project.name}-${Date.now()}@example.com`);
   await page.getByRole('button', { name: '开启我们的小故事' }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto('/space');
