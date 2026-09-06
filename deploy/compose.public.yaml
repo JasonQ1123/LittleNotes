@@ -1,0 +1,9 @@
+# 备案通过、解析正确、80/443 已放行后才使用此文件。
+services:
+  web:
+    environment:
+      SITE_ADDRESS: https://${DOMAIN:?请设置 DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?请设置证书通知邮箱}
+    ports:
+      - '80:80'
+      - '443:443'

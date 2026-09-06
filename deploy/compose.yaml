@@ -1,0 +1,115 @@
+name: littlenotes
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+x-api: &api
+  image: littlenotes-api:local
+  build:
+    context: ..
+    target: api
+  environment: &api-env
+    NODE_ENV: production
+    DATABASE_URL: postgresql://littlenotes:${POSTGRES_PASSWORD:?请先执行 configure.sh}@db:5432/littlenotes?connection_limit=5&pool_timeout=15
+    WEB_ORIGIN: ${WEB_ORIGIN:-https://littlenotes.cn}
+    TRUST_PROXY_IP: 172.30.86.10
+    AI_ENABLED: 'false'
+    ICP_NUMBER: ${ICP_NUMBER:-}
+  networks:
+    - private
+  logging: *logging
+
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: littlenotes
+      POSTGRES_USER: littlenotes
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请先执行 configure.sh}
+    command: ['postgres', '-c', 'shared_buffers=128MB', '-c', 'max_connections=30']
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - private
+    mem_limit: 512m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U littlenotes -d littlenotes']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+
+  migrate:
+    <<: *api
+    profiles: ['tools']
+    restart: 'no'
+    command:
+      [
+        'node',
+        'node_modules/prisma/build/index.js',
+        'migrate',
+        'deploy',
+        '--schema',
+        'prisma/postgresql/schema.prisma',
+      ]
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 640m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  web:
+    image: littlenotes-web:local
+    build:
+      context: ..
+      target: web
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ':8080'
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      private:
+        ipv4_address: 172.30.86.10
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    logging: *logging
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  private:
+    ipam:
+      config:
+        - subnet: 172.30.86.0/24

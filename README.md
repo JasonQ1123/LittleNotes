@@ -95,7 +95,7 @@ tests/                    Playwright 双人完整流程
 
 前端使用 Vue 3、TypeScript、Vite、Vue Router、Pinia、Tailwind CSS 和 Lucide 图标。后端使用 NestJS、Prisma、class-validator 与 Swagger。Vite 将 `/api` 代理到 NestJS，浏览器使用同源 Cookie。
 
-SQLite 写事务在本地进程内排队，并使用数据库唯一约束保护成员、约定版本、确认和回访。正式迁移到 PostgreSQL、引入多个服务实例时，应重新验证并发与数据迁移行为。
+SQLite 写事务在本地进程内排队，并使用数据库唯一约束保护成员、约定版本、确认和回访。服务器版本使用 PostgreSQL Serializable 事务及冲突重试，已增加独立服务实例的并发确认验证。两种数据库分别维护迁移历史。
 
 ## 配置和数据
 
@@ -152,6 +152,10 @@ Windows 上已安装标准路径 Chrome 时会自动使用；其他环境先执�
 
 ## 后续公开上线阶段
 
-本版本完成本地验证流程。公开上线前补齐密码找回、解除配对与历史数据处理规则、账号注销、数据导出、备份与恢复、PostgreSQL 迁移和部署运维。
+阿里云服务器的安装、备案期间内部验证、HTTPS、PostgreSQL、每日备份和恢复演练见 [部署说明](deploy/README.md)。服务器部署使用新的 PostgreSQL 数据库，本地运行仍使用 SQLite；已有本地数据不会自动上传或转换。
+
+生产事务已增加 Serializable 隔离及冲突重试。使用 `TEST_DATABASE_URL` 和 `pnpm test:postgres --e2e` 可以在独立目录中验证 PostgreSQL，避免覆盖本机 SQLite Client。
+
+公开上线前仍需补齐密码找回、解除配对与历史数据处理规则、账号注销、数据导出及异地备份。当前部署适合先做少量用户试用。
 
 图片附件、外部通知、社交内容、付费功能和正式 AI 接入不在这一版范围内。

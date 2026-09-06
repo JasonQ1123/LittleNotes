@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/*.db*
+**/*.dump
+**/*.log
+.cache
+backups
+test-results
+playwright-report
+deploy/.public-enabled

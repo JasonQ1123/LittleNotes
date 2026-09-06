@@ -9,3 +9,8 @@ dist/
 test-results/
 playwright-report/
 *.log
+backups/
+*.dump
+.env.*
+!.env.example
+deploy/.public-enabled

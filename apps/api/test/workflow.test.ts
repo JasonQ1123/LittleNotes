@@ -41,7 +41,14 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
   });
   before(async () => {
     const folder = mkdtempSync(join(tmpdir(), 'little-notes-api-'));
-    process.env.DATABASE_URL = `file:${join(folder, 'test.db').replaceAll('\\', '/')}`;
+    const postgresUrl = process.env.TEST_DATABASE_URL;
+    if (
+      postgresUrl &&
+      !/^ln_test_[a-z0-9_]+$/.test(new URL(postgresUrl).searchParams.get('schema') || '')
+    )
+      throw new Error('PostgreSQL 测试必须使用 ln_test_ 开头的独立 schema');
+    process.env.DATABASE_URL =
+      postgresUrl || `file:${join(folder, 'test.db').replaceAll('\\', '/')}`;
     process.env.AI_ENABLED = 'false';
     process.env.WEB_ORIGIN = 'http://localhost:5173';
     const init = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
@@ -49,7 +56,12 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
     await init.$disconnect();
     execFileSync(
       process.execPath,
-      [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'],
+      [
+        require.resolve('prisma/build/index.js'),
+        'migrate',
+        'deploy',
+        ...(postgresUrl ? ['--schema', 'prisma/postgresql/schema.prisma'] : []),
+      ],
       { cwd: resolve(__dirname, '..'), env: process.env, stdio: 'pipe' },
     );
     app = await createApp(true);
@@ -415,6 +427,112 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
       stats.total,
     );
   });
+  it(
+    'PostgreSQL 的独立服务实例共同确认时，仅产生一份有效约定和一轮回访',
+    { skip: !process.env.TEST_DATABASE_URL },
+    async () => {
+      const peer = await createApp(true);
+      try {
+        const cookieA = (
+          await a
+            .post('/api/auth/login')
+            .send({
+              username: 'person_0',
+              password: 'paper-test-2026',
+            })
+            .expect(200)
+        ).headers['set-cookie'][0].split(';')[0];
+        const cookieB = (
+          await request(peer.getHttpServer())
+            .post('/api/auth/login')
+            .send({
+              username: 'person_1',
+              password: 'paper-test-2026',
+            })
+            .expect(200)
+        ).headers['set-cookie'][0].split(';')[0];
+        const record = (await a.post('/api/records').send({ title: '跨实例同时确认' }).expect(201))
+          .body;
+        await a.post(`/api/records/${record.id}/publish`).expect(201);
+        const pending = (
+          await a.post(`/api/records/${record.id}/agreements`).send(proposal(0)).expect(201)
+        ).body.agreements[0];
+        const confirm = (server: any, cookie: string) =>
+          request(server).post(`/api/agreements/${pending.id}/confirm`).set('Cookie', cookie);
+        const responses = await Promise.all([
+          confirm(app.getHttpServer(), cookieA),
+          confirm(peer.getHttpServer(), cookieB),
+          confirm(peer.getHttpServer(), cookieA),
+          confirm(app.getHttpServer(), cookieB),
+        ]);
+        assert.ok(
+          responses.every((response) => response.status === 201),
+          JSON.stringify(
+            responses.map((response) => ({ status: response.status, body: response.body.message })),
+          ),
+        );
+        const result = (await a.get(`/api/records/${record.id}`).expect(200)).body;
+        assert.equal(result.agreements.filter((item: any) => item.status === 'active').length, 1);
+        assert.equal(result.agreements[0].confirmations.length, 2);
+        assert.equal(result.agreements[0].cycles.length, 1);
+      } finally {
+        await peer.close();
+      }
+    },
+  );
+  it(
+    '生产模式使用安全 Cookie、隐藏文档，并按可信代理传递的真实地址限流',
+    { skip: !process.env.TEST_DATABASE_URL },
+    async () => {
+      const keys = ['NODE_ENV', 'WEB_ORIGIN', 'TRUST_PROXY_IP', 'ICP_NUMBER'] as const;
+      const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+      let production: INestApplication | undefined;
+      try {
+        process.env.NODE_ENV = 'production';
+        process.env.WEB_ORIGIN = 'http://littlenotes.cn';
+        await assert.rejects(() => createApp(true), /HTTPS/);
+        process.env.WEB_ORIGIN = 'https://littlenotes.cn';
+        process.env.TRUST_PROXY_IP = '127.0.0.1';
+        process.env.ICP_NUMBER = '测试备案号12345678号-1';
+        production = await createApp(true);
+        const server = production.getHttpServer();
+        await request(server).get('/api/docs').expect(404);
+        const health = (await request(server).get('/api/health').expect(200)).body;
+        assert.equal(health.icpNumber, process.env.ICP_NUMBER);
+        const login = await request(server)
+          .post('/api/auth/login')
+          .set('Origin', 'https://littlenotes.cn')
+          .set('X-Forwarded-For', '203.0.113.10')
+          .send({ username: 'person_0', password: 'paper-test-2026' })
+          .expect(200);
+        assert.match(login.headers['set-cookie'][0], /; Secure/);
+        assert.match(login.headers['set-cookie'][0], /; HttpOnly/);
+        for (let count = 0; count < 39; count++) {
+          await request(server)
+            .post('/api/auth/login')
+            .set('X-Forwarded-For', '203.0.113.10')
+            .send({ username: 'missing_person', password: 'incorrect-password' })
+            .expect(401);
+        }
+        await request(server)
+          .post('/api/auth/login')
+          .set('X-Forwarded-For', '203.0.113.10')
+          .send({ username: 'missing_person', password: 'incorrect-password' })
+          .expect(429);
+        await request(server)
+          .post('/api/auth/login')
+          .set('X-Forwarded-For', '203.0.113.11')
+          .send({ username: 'missing_person', password: 'incorrect-password' })
+          .expect(401);
+      } finally {
+        await production?.close();
+        for (const key of keys) {
+          if (saved[key] === undefined) delete process.env[key];
+          else process.env[key] = saved[key];
+        }
+      }
+    },
+  );
   it('删除仅限本人草稿，退出和重登、服务重启后数据与会话仍然存在', async () => {
     const draft = (await a.post('/api/records').send({ title: '准备删除的私密草稿' }).expect(201))
       .body;

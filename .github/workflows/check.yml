@@ -1,0 +1,56 @@
+name: 构建与部署检查
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_DB: littlenotes_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test_ci_only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U test -d littlenotes_test"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run setup
+      - run: pnpm build && pnpm test
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:postgres --e2e
+        env:
+          TEST_DATABASE_URL: postgresql://test:test_ci_only@127.0.0.1:5432/littlenotes_test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: 浏览器检查结果
+          path: .cache/postgres-test-*/test-results/
+          include-hidden-files: true
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash deploy/deploy.sh
+      - run: |
+          bash deploy/backup.sh
+          backup=$(find backups -name '*.dump' -type f | head -n 1)
+          bash deploy/verify-backup.sh "$backup"
+      - name: 容器日志
+        if: failure()
+        run: docker compose --env-file deploy/.env -f deploy/compose.yaml logs --tail=100
+      - name: 清理本次 CI 容器和数据
+        if: always()
+        run: docker compose --env-file deploy/.env -f deploy/compose.yaml down -v

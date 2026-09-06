@@ -13,6 +13,7 @@ import {
 import { APP_GUARD, NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
+import { isIP } from 'node:net';
 import { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -26,8 +27,15 @@ import { AiController, AiService } from './ai';
 
 @Controller('health')
 class HealthController {
-  @Public() @Get() health() {
-    return { ok: true, name: '小纸条', features: { ai: false } };
+  constructor(private db: Database) {}
+  @Public() @Get() async health() {
+    await this.db.$queryRaw`SELECT 1`;
+    return {
+      ok: true,
+      name: '小纸条',
+      features: { ai: false },
+      icpNumber: process.env.ICP_NUMBER || '',
+    };
   }
 }
 
@@ -41,12 +49,10 @@ class Errors implements ExceptionFilter {
         typeof body === 'string'
           ? { message: body }
           : (body as { message?: string | string[]; code?: string });
-      return res
-        .status(error.getStatus())
-        .json({
-          ...result,
-          message: Array.isArray(result.message) ? result.message.join('；') : result.message,
-        });
+      return res.status(error.getStatus()).json({
+        ...result,
+        message: Array.isArray(result.message) ? result.message.join('；') : result.message,
+      });
     }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -83,10 +89,31 @@ class Errors implements ExceptionFilter {
 export class AppModule {}
 
 export async function createApp(quiet = false) {
+  if (process.env.NODE_ENV === 'production') {
+    if (!/^postgres(ql)?:/.test(process.env.DATABASE_URL || ''))
+      throw new Error('生产环境需要配置 PostgreSQL DATABASE_URL');
+    const origins = (process.env.WEB_ORIGIN || '').split(',').filter(Boolean);
+    if (
+      !origins.length ||
+      origins.some((value) => {
+        try {
+          return new URL(value).origin !== value || !value.startsWith('https://');
+        } catch {
+          return true;
+        }
+      })
+    )
+      throw new Error('生产环境 WEB_ORIGIN 必须是明确的 HTTPS 来源');
+  }
   const app = await NestFactory.create(AppModule, {
     logger: quiet ? false : ['log', 'error', 'warn'],
   });
   app.setGlobalPrefix('api');
+  // Only Caddy knows the real client address. Never trust arbitrary forwarded headers.
+  if (process.env.TRUST_PROXY_IP) {
+    if (!isIP(process.env.TRUST_PROXY_IP)) throw new Error('TRUST_PROXY_IP 必须是单个代理 IP');
+    app.getHttpAdapter().getInstance().set('trust proxy', process.env.TRUST_PROXY_IP);
+  }
   app.use(helmet());
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -104,16 +131,20 @@ export async function createApp(quiet = false) {
     new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }),
   );
   app.useGlobalFilters(new Errors());
-  const document = SwaggerModule.createDocument(
-    app,
-    new DocumentBuilder()
-      .setTitle('小纸条 API')
-      .setDescription('情侣空间、私密草稿、共同约定与独立回访。所有业务接口都验证登录和空间权限。')
-      .setVersion('1.0')
-      .addCookieAuth('paper_session')
-      .build(),
-  );
-  SwaggerModule.setup('api/docs', app, document);
+  if (process.env.NODE_ENV !== 'production') {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setTitle('小纸条 API')
+        .setDescription(
+          '情侣空间、私密草稿、共同约定与独立回访。所有业务接口都验证登录和空间权限。',
+        )
+        .setVersion('1.0')
+        .addCookieAuth('paper_session')
+        .build(),
+    );
+    SwaggerModule.setup('api/docs', app, document);
+  }
   app.enableShutdownHooks();
   await app.init();
   return app;

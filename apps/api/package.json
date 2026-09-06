@@ -7,6 +7,8 @@
     "start": "node dist/main.js",
     "db:generate": "prisma generate",
     "db:migrate": "node scripts/init-database.cjs && prisma migrate deploy",
+    "db:postgres:generate": "node ../../scripts/sync-postgres.mjs --check && prisma generate --schema prisma/postgresql/schema.prisma",
+    "db:postgres:migrate": "prisma migrate deploy --schema prisma/postgresql/schema.prisma",
     "test": "node -r ts-node/register --test --test-concurrency=1 test/*.test.ts"
   },
   "dependencies": {

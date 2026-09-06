@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, ref, onBeforeUnmount, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useSession } from './store';
-import { toast, notify } from './api';
+import { api, toast, notify } from './api';
 import AppIcon from './components/AppIcon.vue';
 const session = useSession();
 const route = useRoute();
 const router = useRouter();
+const icpNumber = ref('');
 const nav = [
   { to: '/', label: '我们的小天地', icon: 'home' },
   { to: '/records', label: '矛盾记录', icon: 'note' },
@@ -24,7 +25,16 @@ function expired() {
   notify('登录已过期，请重新登录', true);
   router.replace({ path: '/login', query: { redirect: route.fullPath } });
 }
-onMounted(() => window.addEventListener('session-expired', expired));
+onMounted(() => {
+  window.addEventListener('session-expired', expired);
+  api<{ icpNumber?: string }>('/health')
+    .then((site) => {
+      icpNumber.value = site.icpNumber || '';
+    })
+    .catch(() => {
+      /* The optional site footer does not interrupt the current page. */
+    });
+});
 onBeforeUnmount(() => window.removeEventListener('session-expired', expired));
 </script>
 <template>
@@ -97,6 +107,11 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired));
       >
     </nav>
   </div>
+  <footer v-if="icpNumber" class="site-footer" :class="{ 'with-navigation': !route.meta.public }">
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{
+      icpNumber
+    }}</a>
+  </footer>
   <Transition name="toast"
     ><div
       v-if="toast"
