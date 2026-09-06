@@ -613,6 +613,87 @@ strong {
   background: #f4e4d6;
   color: #b1957c;
 }
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.user-avatar .avatar {
+  width: 100%;
+  height: 100%;
+  font-size: inherit;
+}
+.profile-avatar-button {
+  display: inline-flex;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+.profile-file-input {
+  display: none;
+}
+.profile-avatar-actions {
+  flex-wrap: wrap;
+  margin-top: -12px;
+}
+.profile-image-hint {
+  color: var(--sage-dark);
+  font-size: 11px;
+  margin: 10px 0 18px;
+}
+.profile-edit-button,
+.profile-name-form {
+  margin-bottom: 12px;
+}
+.avatar-crop-wrap {
+  max-width: 256px;
+  margin: 0 auto 24px;
+}
+.avatar-crop {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--soft-sage);
+  cursor: grab;
+  touch-action: none;
+}
+.avatar-crop:active {
+  cursor: grabbing;
+}
+.avatar-crop:focus-visible {
+  outline: 3px solid #9cb191;
+  outline-offset: 4px;
+}
+.avatar-zoom {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  color: var(--sage-dark);
+}
+.avatar-zoom input {
+  flex: 1;
+  padding: 0;
+  accent-color: var(--sage-dark);
+}
+.avatar-editor {
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+}
+.dialog.avatar-editor h2,
+.dialog.avatar-editor > p {
+  color: var(--sage-dark);
+}
+.avatar-editor-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.avatar-editor-actions .text-button {
+  margin-right: auto;
+}
 .avatar-pair {
   display: flex;
   flex-shrink: 0;
@@ -2070,7 +2151,9 @@ strong {
 .password-input {
   position: relative;
 }
+.password-input input,
 .auth-form .password-input input {
+  width: 100%;
   padding-right: 49px;
 }
 .password-input input::-ms-reveal {
@@ -2086,6 +2169,17 @@ strong {
 }
 .password-toggle:focus-visible {
   outline-offset: 0;
+}
+.password-dialog {
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+}
+.dialog.password-dialog h2,
+.dialog.password-dialog > p {
+  color: var(--sage-dark);
+}
+.password-dialog .actions {
+  flex-wrap: wrap;
 }
 .auth-form > .btn {
   margin-top: 7px;

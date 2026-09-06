@@ -8,6 +8,7 @@
 **/*.log
 .cache
 backups
+**/uploads
 test-results
 playwright-report
 deploy/.public-enabled

@@ -5,11 +5,15 @@ import { api, notify, useTask } from '../api';
 import { useSession } from '../store';
 import { dateLabel } from '../types';
 import AppIcon from '../components/AppIcon.vue';
+import UserAvatar from '../components/UserAvatar.vue';
+import ProfileSettings from '../components/ProfileSettings.vue';
+import PasswordChangeDialog from '../components/PasswordChangeDialog.vue';
 const session = useSession();
 const router = useRouter();
 const { busy, run } = useTask();
 const name = ref('我们的小天地');
 const inviteLink = ref('');
+const changingPassword = ref(false);
 async function create() {
   await run(async () => {
     await api('/spaces', { method: 'POST', body: { name: name.value } });
@@ -61,12 +65,12 @@ async function logout() {
       <template v-if="session.space"
         ><div class="space-cover">
           <div class="large-avatar-pair">
-            <span
+            <UserAvatar
               v-for="(member, index) in session.space.members"
               :key="member.id"
-              :class="['avatar large', { peach: index === 1 }]"
-              >{{ member.nickname.slice(0, 1) }}</span
-            ><span v-if="session.space.members.length < 2" class="avatar large dashed"
+              :user="member"
+              :class="['large', { peach: index === 1 }]"
+            /><span v-if="session.space.members.length < 2" class="avatar large dashed"
               ><AppIcon name="plus" :size="24"
             /></span>
           </div>
@@ -135,15 +139,15 @@ async function logout() {
     <div class="settings-side">
       <section class="panel settings-card">
         <h2>我的小名片</h2>
-        <div class="profile-row">
-          <span class="avatar large">{{ session.user?.nickname.slice(0, 1) }}</span>
-          <div>
-            <h3>{{ session.user?.nickname }}</h3>
-            <p>@{{ session.user?.username }}</p>
-          </div>
-        </div>
+        <ProfileSettings />
         <button class="btn secondary full" :disabled="busy" @click="logout">
           <AppIcon name="logout" :size="17" />退出登录
+        </button>
+      </section>
+      <section class="panel settings-card">
+        <h2>账号安全</h2>
+        <button type="button" class="btn secondary full" @click="changingPassword = true">
+          <AppIcon name="lock" :size="17" />修改密码
         </button>
       </section>
       <section class="gentle-card">
@@ -155,4 +159,5 @@ async function logout() {
       </section>
     </div>
   </div>
+  <PasswordChangeDialog v-if="changingPassword" @cancel="changingPassword = false" />
 </template>

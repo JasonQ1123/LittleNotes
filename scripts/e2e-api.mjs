@@ -19,6 +19,7 @@ process.env.DATABASE_URL =
   postgresUrl || `file:${resolve(cache, `e2e-${randomUUID()}.db`).replaceAll('\\', '/')}`;
 process.env.WEB_ORIGIN = 'http://127.0.0.1:5174';
 process.env.AI_ENABLED = 'false';
+process.env.AVATAR_STORAGE_DIR = resolve(cache, `e2e-avatars-${randomUUID()}`);
 const { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
 await db.$connect();

@@ -1,4 +1,5 @@
 import { Transform, Type } from 'class-transformer';
+import { applyDecorators } from '@nestjs/common';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -34,20 +35,55 @@ export const RATINGS = ['明显改善', '部分改善', '没有改善', '变差'
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 const IsOptional = () => ValidateIf((_object, value) => value !== undefined);
 
-export class LoginDto {
+const newPassword = (label: string) =>
+  applyDecorators(
+    ApiProperty({
+      minLength: 8,
+      maxLength: 32,
+      description: '必须同时包含英文字母和数字，可包含符号',
+    }),
+    IsString(),
+    MinLength(8, { message: `${label}至少需要 8 位` }),
+    MaxLength(32, { message: `${label}不能超过 32 位` }),
+    Matches(/^(?=[\s\S]*[A-Za-z])(?=[\s\S]*[0-9])[\s\S]*$/, {
+      message: `${label}必须同时包含英文字母和数字`,
+    }),
+  );
+
+class UsernameDto {
   @ApiProperty()
   @trim()
   @IsString()
   @Matches(/^[a-zA-Z0-9_]{3,32}$/, { message: '用户名需为 3–32 位字母、数字或下划线' })
   username!: string;
+}
+export class LoginDto extends UsernameDto {
+  // Existing accounts may still use passwords allowed by the original policy.
   @ApiProperty()
   @IsString()
   @MinLength(8, { message: '密码至少需要 8 位' })
   @MaxLength(128)
   password!: string;
 }
-export class RegisterDto extends LoginDto {
+export class RegisterDto extends UsernameDto {
+  @newPassword('密码') password!: string;
   @ApiProperty() @trim() @IsString() @IsNotEmpty() @MaxLength(30) nickname!: string;
+}
+export class UpdateProfileDto {
+  @ApiProperty() @trim() @IsString() @IsNotEmpty() @MaxLength(30) nickname!: string;
+}
+export class ChangePasswordDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(8, { message: '当前密码至少需要 8 位' })
+  @MaxLength(128, { message: '当前密码不能超过 128 位' })
+  currentPassword!: string;
+
+  @newPassword('新密码')
+  newPassword!: string;
+
+  @newPassword('确认新密码')
+  confirmPassword!: string;
 }
 export class CreateSpaceDto {
   @ApiProperty() @trim() @IsString() @IsNotEmpty() @MaxLength(40) name!: string;

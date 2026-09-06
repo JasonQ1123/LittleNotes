@@ -64,6 +64,11 @@ services:
   api:
     <<: *api
     restart: unless-stopped
+    environment:
+      <<: *api-env
+      AVATAR_STORAGE_DIR: /app/uploads/avatars
+    volumes:
+      - ../uploads/avatars:/app/uploads/avatars
     depends_on:
       db:
         condition: service_healthy

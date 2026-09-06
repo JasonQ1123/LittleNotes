@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 bash "$DEPLOY_DIR/configure.sh"
+bash "$DEPLOY_DIR/prepare-uploads.sh"
 dc config --quiet
 if [[ -n "$(dc ps --status running -q db)" ]]; then
   bash "$DEPLOY_DIR/backup.sh"

@@ -17,15 +17,23 @@ export async function api<T>(
     response = await fetch(`/api${path}`, {
       method: options.method || 'GET',
       credentials: 'same-origin',
-      headers: options.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      headers:
+        options.body !== undefined && !(options.body instanceof FormData)
+          ? { 'Content-Type': 'application/json' }
+          : undefined,
+      body:
+        options.body instanceof FormData
+          ? options.body
+          : options.body !== undefined
+            ? JSON.stringify(options.body)
+            : undefined,
     });
   } catch {
     throw new ApiError('暂时无法连接小纸条，请检查服务是否正在运行', 0);
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 401 && !path.startsWith('/auth/'))
+    if (response.status === 401 && (!path.startsWith('/auth/') || path === '/auth/password/change'))
       window.dispatchEvent(new Event('session-expired'));
     throw new ApiError(data?.message || '暂时没有完成，请稍后重试', response.status);
   }

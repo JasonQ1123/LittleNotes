@@ -4,6 +4,7 @@ import { api, useTask } from '../api';
 import { useSession } from '../store';
 import { emptyPerspective, perspectiveFields, type Note } from '../types';
 import AppIcon from './AppIcon.vue';
+import UserAvatar from './UserAvatar.vue';
 const props = defineProps<{ note: Note }>();
 const emit = defineEmits<{ updated: [note: Note] }>();
 const session = useSession();
@@ -37,10 +38,7 @@ async function save(publish: boolean) {
   <div class="perspective-grid">
     <section class="panel content-panel">
       <div class="section-heading">
-        <h2>
-          <span class="avatar tiny">{{ session.user?.nickname.slice(0, 1) }}</span
-          >我的视角
-        </h2>
+        <h2><UserAvatar :user="session.user" class="tiny" />我的视角</h2>
         <span :class="['badge', mine?.hasUnpublishedChanges ? 'draft' : 'followup']">{{
           !mine?.publishedAt ? '仅自己可见' : mine.hasUnpublishedChanges ? '有未发布修改' : '已分享'
         }}</span>
@@ -81,8 +79,9 @@ async function save(publish: boolean) {
     <section class="panel content-panel partner-panel">
       <div class="section-heading">
         <h2>
-          <span class="avatar tiny peach">{{ partner?.nickname.slice(0, 1) || '?' }}</span
-          >{{ partner?.nickname || '对方' }}的视角
+          <UserAvatar :user="partner" class="tiny peach" fallback="?" />{{
+            partner?.nickname || '对方'
+          }}的视角
         </h2>
         <AppIcon name="heart" :size="19" class="muted" />
       </div>

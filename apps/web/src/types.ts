@@ -2,11 +2,13 @@ export interface User {
   id: string;
   username: string;
   nickname: string;
+  avatarUrl: string | null;
   spaceId: string | null;
 }
 export interface Member {
   id: string;
   nickname: string;
+  avatarUrl: string | null;
 }
 export interface Space {
   id: string;

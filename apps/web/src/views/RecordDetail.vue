@@ -5,6 +5,7 @@ import { api, useTask } from '../api';
 import { useSession } from '../store';
 import { categories, dateLabel, inputDate, statusLabels, type Note, type NoteList } from '../types';
 import AppIcon from '../components/AppIcon.vue';
+import UserAvatar from '../components/UserAvatar.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import PerspectivePanel from '../components/PerspectivePanel.vue';
 import AgreementPanel from '../components/AgreementPanel.vue';
@@ -304,8 +305,7 @@ onMounted(load);
               <h2>我们的当下</h2>
               <p class="section-description">和好了，也可以继续留意后来的改变。</p>
               <div class="member-status" v-for="member in note.space.members" :key="member.id">
-                <span class="avatar tiny">{{ member.nickname.slice(0, 1) }}</span
-                ><span>{{ member.nickname }}</span
+                <UserAvatar :user="member" class="tiny" /><span>{{ member.nickname }}</span
                 ><span
                   :class="[
                     'muted',

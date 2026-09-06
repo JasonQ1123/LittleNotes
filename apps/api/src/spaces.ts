@@ -12,7 +12,7 @@ import {
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { randomBytes } from 'node:crypto';
 import { Database } from './database';
-import { Actor, CurrentUser, hashToken, userSelect } from './auth';
+import { Actor, CurrentUser, hashToken, userSelect, withAvatar } from './auth';
 import { AcceptInvitationDto, CreateSpaceDto } from './dto';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class SpacesService {
         },
       },
     });
-    return space;
+    return space ? { ...space, members: space.members.map(withAvatar) } : null;
   }
   create(user: Actor, dto: CreateSpaceDto) {
     return this.db.atomic(async (tx) => {

@@ -24,6 +24,7 @@ import { RecordsController, RecordsService } from './records';
 import { AgreementsController, AgreementsService } from './agreements';
 import { DashboardController, DashboardService } from './dashboard';
 import { AiController, AiService } from './ai';
+import { ProfilesController, ProfilesService } from './profiles';
 
 @Controller('health')
 class HealthController {
@@ -74,6 +75,7 @@ class Errors implements ExceptionFilter {
     AgreementsController,
     DashboardController,
     AiController,
+    ProfilesController,
   ],
   providers: [
     Database,
@@ -83,6 +85,7 @@ class Errors implements ExceptionFilter {
     AgreementsService,
     DashboardService,
     AiService,
+    ProfilesService,
     { provide: APP_GUARD, useClass: SessionGuard },
   ],
 })

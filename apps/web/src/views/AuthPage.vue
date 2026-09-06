@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../components/AppIcon.vue';
 import { api, useTask } from '../api';
 import { useSession } from '../store';
+import { isNewPasswordValid, NEW_PASSWORD_HINT, NEW_PASSWORD_PATTERN } from '../password';
 const register = ref(false);
 const username = ref('');
 const password = ref('');
@@ -18,6 +19,8 @@ watch(register, () => {
 });
 async function submit() {
   await run(async () => {
+    if (register.value && !isNewPasswordValid(password.value))
+      throw new Error(`密码需为 ${NEW_PASSWORD_HINT}`);
     await api(`/auth/${register.value ? 'register' : 'login'}`, {
       method: 'POST',
       body: {
@@ -80,6 +83,9 @@ async function submit() {
         <div v-if="route.query.connection" class="notice warm">
           暂时没有连接上服务，连接恢复后可以重新登录。
         </div>
+        <div v-if="route.query.passwordChanged === '1'" class="notice" role="status">
+          密码已修改，所有设备已退出登录。请使用新密码重新登录。
+        </div>
         <div v-if="route.query.redirect" class="notice">登录后，我们会带你继续打开这份小纸条。</div>
         <label v-if="register" class="field"
           >怎么称呼你<input
@@ -107,9 +113,12 @@ async function submit() {
               :autocomplete="register ? 'new-password' : 'current-password'"
               :type="showPassword ? 'text' : 'password'"
               minlength="8"
-              maxlength="128"
+              :maxlength="register ? 32 : 128"
+              :pattern="register ? NEW_PASSWORD_PATTERN : undefined"
+              :title="register ? NEW_PASSWORD_HINT : undefined"
+              :aria-describedby="register ? 'auth-password-hint' : undefined"
               required
-              placeholder="至少 8 位，留好这把小钥匙"
+              :placeholder="register ? '8–32 位英文字母与数字组合' : '请输入密码'"
             />
             <button
               type="button"
@@ -122,6 +131,7 @@ async function submit() {
               <AppIcon :name="showPassword ? 'eyeOff' : 'eye'" :size="18" />
             </button>
           </div>
+          <small v-if="register" id="auth-password-hint">{{ NEW_PASSWORD_HINT }}</small>
         </div>
         <button class="btn primary full" :disabled="busy">
           {{ busy ? '请稍等…' : register ? '开启我们的小故事' : '回到小纸条'

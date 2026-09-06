@@ -4,6 +4,7 @@ import { api, useTask } from '../api';
 import { useSession } from '../store';
 import { dateLabel, inputDate, ratings, type Note } from '../types';
 import AppIcon from './AppIcon.vue';
+import UserAvatar from './UserAvatar.vue';
 import EmptyState from './EmptyState.vue';
 const props = defineProps<{ note: Note }>();
 const emit = defineEmits<{ updated: [note: Note] }>();
@@ -88,7 +89,7 @@ async function schedule() {
         :class="['panel review-card', { 'partner-review': index === 1 }]"
       >
         <div class="review-person">
-          <span :class="['avatar', { peach: index === 1 }]">{{ member.nickname.slice(0, 1) }}</span>
+          <UserAvatar :user="member" :class="{ peach: index === 1 }" />
           <h3>{{ member.nickname }}的感受</h3>
         </div>
         <template v-if="cycle.reviews.find((r) => r.userId === member.id)"

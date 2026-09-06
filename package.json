@@ -8,6 +8,7 @@
     "build": "pnpm --filter @paper/api build && pnpm --filter @paper/web build",
     "test": "pnpm --filter @paper/api test",
     "test:postgres": "node scripts/test-postgres.mjs",
+    "test:backup": "node scripts/test-avatar-backup.mjs",
     "db:postgres:sync": "node scripts/sync-postgres.mjs",
     "package:deploy": "node scripts/package-deploy.mjs",
     "test:e2e": "pnpm build && playwright test"

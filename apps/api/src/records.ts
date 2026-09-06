@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
-import { Actor, CurrentUser } from './auth';
+import { Actor, CurrentUser, memberSelect, withAvatar } from './auth';
 import { Database } from './database';
 import {
   CreateRecordDto,
@@ -34,7 +34,7 @@ const linkSelect = {
   authorId: true,
 } as const;
 export const recordInclude = Prisma.validator<Prisma.RecordInclude>()({
-  space: { select: { name: true, members: { select: { id: true, nickname: true } } } },
+  space: { select: { name: true, members: { select: memberSelect } } },
   perspectives: true,
   agreements: {
     orderBy: { version: 'desc' },
@@ -85,6 +85,7 @@ export class RecordsService {
     const { tagsJson, perspectives, agreements, relatedTo, relatedFrom, ...base } = record;
     return {
       ...base,
+      space: { ...record.space, members: record.space.members.map(withAvatar) },
       tags: JSON.parse(tagsJson) as string[],
       reconciled:
         record.space.members.length === 2 &&

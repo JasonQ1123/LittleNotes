@@ -42,7 +42,8 @@ for (const name of ['apps', 'scripts', 'tests'])
   cpSync(join(root, name), join(sandbox, name), {
     recursive: true,
     filter: (path) =>
-      !['node_modules', 'dist', '.env'].includes(basename(path)) && !/\.db(?:$|-)/.test(path),
+      !['node_modules', 'dist', '.env', 'uploads'].includes(basename(path)) &&
+      !/\.db(?:$|-)/.test(path),
   });
 const run = (args, extra = {}) =>
   new Promise((resolve, reject) => {

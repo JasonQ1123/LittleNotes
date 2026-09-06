@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useSession } from './store';
 import { api, toast, notify } from './api';
 import AppIcon from './components/AppIcon.vue';
+import UserAvatar from './components/UserAvatar.vue';
 const session = useSession();
 const route = useRoute();
 const router = useRouter();
@@ -67,8 +68,8 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired));
       </div>
       <RouterLink to="/space" class="space-link"
         ><div class="avatar-pair">
-          <span class="avatar">{{ session.user?.nickname.slice(0, 1) || '我' }}</span
-          ><span class="avatar peach">{{ partner?.nickname.slice(0, 1) || '+' }}</span>
+          <UserAvatar :user="session.user" />
+          <UserAvatar :user="partner" class="peach" fallback="+" />
         </div>
         <div>
           <strong>{{ session.space?.name || '建立我们的空间' }}</strong
@@ -83,10 +84,10 @@ onBeforeUnmount(() => window.removeEventListener('session-expired', expired));
         ><span class="top-date"><AppIcon name="calendar" :size="16" />{{ today }}</span
         ><RouterLink
           to="/space"
-          class="avatar user-avatar"
+          class="user-avatar"
           :aria-label="`${session.user?.nickname || '我的'}账号`"
-          >{{ session.user?.nickname.slice(0, 1) }}</RouterLink
-        >
+          ><UserAvatar :user="session.user"
+        /></RouterLink>
       </header>
       <main id="main-content" class="main-content"><RouterView :key="route.path" /></main>
       <footer class="page-footer">

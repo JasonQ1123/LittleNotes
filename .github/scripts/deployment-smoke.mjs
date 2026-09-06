@@ -1,21 +1,23 @@
 // CI-only check against the loopback production containers. The job removes its own database.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 
 if (process.env.CI !== 'true') throw new Error('仅在 CI 的临时部署中创建演练数据');
 const base = 'http://127.0.0.1:8080';
 const suffix = randomUUID().replaceAll('-', '').slice(0, 10);
 const actor = () => {
   let cookie = '';
-  return async (path, body) => {
+  return async (path, body, options = {}) => {
+    const multipart = body instanceof FormData;
     const response = await fetch(`${base}/api${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
+      method: options.method || (body === undefined ? 'GET' : 'POST'),
       headers: {
-        'Content-Type': 'application/json',
+        ...(!multipart ? { 'Content-Type': 'application/json' } : {}),
         Origin: 'https://littlenotes.cn',
         ...(cookie ? { Cookie: cookie } : {}),
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
     });
     assert.ok(response.ok, `${path}: ${response.status}`);
     const next = response.headers.get('set-cookie');
@@ -24,7 +26,7 @@ const actor = () => {
       assert.match(next, /; HttpOnly/);
       cookie = next.split(';')[0];
     }
-    return response.json();
+    return options.image ? Buffer.from(await response.arrayBuffer()) : response.json();
   };
 };
 const a = actor();
@@ -32,16 +34,56 @@ const b = actor();
 await a('/auth/register', {
   username: `deploy_a_${suffix}`,
   nickname: '演练甲',
-  password: randomUUID(),
+  password: `Aa1${randomUUID().replaceAll('-', '').slice(0, 29)}`,
 });
 await b('/auth/register', {
   username: `deploy_b_${suffix}`,
   nickname: '演练乙',
-  password: randomUUID(),
+  password: `Aa1${randomUUID().replaceAll('-', '').slice(0, 29)}`,
 });
 await a('/spaces', { name: '部署恢复演练空间' });
 const invitation = await a('/spaces/invitations', {});
 await b('/spaces/invitations/accept', { token: invitation.token });
+await a('/users/me', { nickname: '演练新昵称' }, { method: 'PATCH' });
+const image = new FormData();
+image.append(
+  'file',
+  new Blob(
+    [
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWOomJQOAAL3AXLrPNAzAAAAAElFTkSuQmCC',
+        'base64',
+      ),
+    ],
+    { type: 'image/png' },
+  ),
+  'avatar.png',
+);
+const profile = await a('/users/me/avatar', image, { method: 'PUT' });
+const avatarPath = profile.avatarUrl.replace(/^\/api/, '');
+const originalAvatar = await a(avatarPath, undefined, { image: true });
+assert.equal(originalAvatar.toString('ascii', 8, 12), 'WEBP');
+assert.deepEqual(await b(avatarPath, undefined, { image: true }), originalAvatar);
+// Only CI's temporary project is recreated; this verifies the bind mount survives.
+execFileSync(
+  'docker',
+  [
+    'compose',
+    '--env-file',
+    'deploy/.env',
+    '-f',
+    'deploy/compose.yaml',
+    'up',
+    '-d',
+    '--no-deps',
+    '--force-recreate',
+    '--wait',
+    'api',
+  ],
+  { stdio: 'inherit' },
+);
+assert.equal((await a('/auth/me')).nickname, '演练新昵称');
+assert.deepEqual(await a(avatarPath, undefined, { image: true }), originalAvatar);
 const record = await a('/records', { title: '恢复演练：下次提前说一声' });
 await a(`/records/${record.id}/publish`, {});
 const proposal = await a(`/records/${record.id}/agreements`, {
