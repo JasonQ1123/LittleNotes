@@ -10,7 +10,19 @@ if (git(['status', '--porcelain'])) throw new Error('请先提交代码，再打
 const folder = join(root, '.cache', 'releases');
 mkdirSync(folder, { recursive: true });
 const file = join(folder, 'littlenotes-deploy.tar.gz');
-git(['archive', '--format=tar.gz', '--prefix=littlenotes/', '--output', file, 'HEAD']);
+// Git archive also honors checkout newline conversion; use Linux line endings on Windows.
+git([
+  '-c',
+  'core.autocrlf=false',
+  '-c',
+  'core.eol=lf',
+  'archive',
+  '--format=tar.gz',
+  '--prefix=littlenotes/',
+  '--output',
+  file,
+  'HEAD',
+]);
 const digest = createHash('sha256').update(readFileSync(file)).digest('hex');
 writeFileSync(`${file}.sha256`, `${digest}  littlenotes-deploy.tar.gz\n`);
 console.log(`部署包：${file}\n版本：${git(['rev-parse', '--short', 'HEAD'])}\nSHA256：${digest}`);
