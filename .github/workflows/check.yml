@@ -44,6 +44,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: 预拉取 CI 数据库镜像
+        # GitHub runners can use Docker Hub; prefill the official ECR alias used by deployment.
+        # This avoids ECR anonymous pull throttling before the container smoke test starts.
+        run: |
+          docker pull docker.io/library/postgres:16-bookworm
+          docker tag docker.io/library/postgres:16-bookworm public.ecr.aws/docker/library/postgres:16-bookworm
       - name: 临时容器配置（不发送真实邮件）
         run: |
           bash deploy/configure.sh
