@@ -43,13 +43,9 @@ async function load() {
 onMounted(load);
 </script>
 <template>
-  <div class="page-heading">
+  <div class="page-heading home-heading">
     <div>
-      <span class="eyebrow">OUR LITTLE CORNER</span>
-      <h1>
-        {{ greeting }}，{{ session.user?.nickname
-        }}<span class="greeting-leaf"><AppIcon name="leaf" :size="27" /></span>
-      </h1>
+      <h1>{{ greeting }}，{{ session.user?.nickname }}。</h1>
       <p>每一次愿意靠近，都是关系里的一点光。</p>
     </div>
     <RouterLink :to="session.space ? '/records/new' : '/space'" class="btn primary"
@@ -58,26 +54,23 @@ onMounted(load);
   </div>
   <section class="home-hero">
     <div class="hero-copy">
-      <span class="hero-kicker"><span></span> 给我们，好好相处的日常</span>
+      <span class="hero-kicker"><AppIcon name="heart" :size="16" />给我们，好好相处的日常</span>
       <h2>和好以后，<br />也记得一起向前。</h2>
-      <p>把没说完的话写下来，把商量好的事记心上。<br />下一次回头看，希望我们都多了一点理解。</p>
-      <RouterLink :to="session.space ? '/records/new' : '/space'" class="btn hero-button"
-        >{{ session.space ? '记录此刻的心事' : '建立我们的空间' }}<AppIcon name="arrow" :size="17"
+      <p>把没说完的话写下来，<br />把商量好的事，慢慢做到。</p>
+      <RouterLink v-if="!session.space" to="/space" class="btn hero-button"
+        >建立我们的空间<AppIcon name="arrow" :size="17"
       /></RouterLink>
     </div>
     <div class="hero-art" aria-hidden="true">
       <div class="art-orbit orbit-one"></div>
-      <div class="art-orbit orbit-two"></div>
       <div class="hero-paper back-paper"></div>
       <div class="hero-paper front-paper">
         <span class="paper-tape"></span><span class="handwritten">给亲爱的我们</span>
         <div class="paper-rule"></div>
         <p>认真听，好好说。<br />有分歧，也有拥抱。</p>
-        <div class="paper-rule short"></div>
         <AppIcon name="heart" :size="28" class="paper-heart" />
       </div>
-      <div class="floating-leaf"><AppIcon name="leaf" :size="36" /></div>
-      <span class="art-spark">✳</span>
+      <div class="floating-flower"><AppIcon name="flower" :size="28" /></div>
     </div>
   </section>
   <div v-if="error" class="notice error-notice" role="alert">
@@ -87,26 +80,19 @@ onMounted(load);
     <span class="spinner"></span>正在翻开我们的小纸条…
   </div>
   <template v-else-if="data">
-    <section class="stat-grid" aria-label="空间概览">
-      <div class="stat-card">
-        <div class="stat-icon sage-bg"><AppIcon name="note" :size="22" /></div>
-        <div>
-          <span>一起写下的纸条</span><strong>{{ data.counts.records }}<small>张</small></strong>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon peach-bg"><AppIcon name="agreement" :size="22" /></div>
-        <div>
-          <span>正在努力的约定</span
-          ><strong>{{ data.counts.activeAgreements }}<small>份</small></strong>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon yellow-bg"><AppIcon name="clock" :size="22" /></div>
-        <div>
-          <span>等你回头看看</span><strong>{{ data.counts.dueReviews }}<small>件</small></strong>
-        </div>
-      </div>
+    <section class="home-overview" aria-label="空间概览">
+      <span
+        ><AppIcon name="note" :size="16" />一起写下
+        <strong>{{ data.counts.records }}</strong> 张纸条</span
+      >
+      <span
+        ><AppIcon name="agreement" :size="16" />正在努力的
+        <strong>{{ data.counts.activeAgreements }}</strong> 份约定</span
+      >
+      <span
+        ><AppIcon name="clock" :size="16" /><strong>{{ data.counts.dueReviews }}</strong>
+        件待回访</span
+      >
     </section>
     <div v-if="session.space && session.space.members.length < 2" class="pair-banner">
       <AppIcon name="users" />

@@ -24,9 +24,9 @@ function spaceUpdated(event: Event) {
 }
 const nav = [
   { to: '/', label: '我们的小天地', icon: 'home' },
-  { to: '/records', label: '矛盾记录', icon: 'note' },
+  { to: '/records', label: '我们的纸条', icon: 'note' },
   { to: '/agreements', label: '共同约定', icon: 'agreement' },
-  { to: '/statistics', label: '回顾统计', icon: 'chart' },
+  { to: '/statistics', label: '一起回顾', icon: 'chart' },
 ] as const;
 const today = new Date().toLocaleDateString('zh-CN', {
   month: 'long',
@@ -83,7 +83,7 @@ onBeforeUnmount(() => {
         ><span class="brand-mark"><AppIcon name="note" :size="26" /></span
         ><span>小纸条<small>把彼此放在心上</small></span></RouterLink
       >
-      <div class="sidebar-label">我们的故事</div>
+      <div class="sidebar-label">两个人的日常</div>
       <nav aria-label="主要导航">
         <RouterLink
           v-for="item in nav"
@@ -99,7 +99,7 @@ onBeforeUnmount(() => {
       </nav>
       <div class="sidebar-note">
         <AppIcon name="leaf" :size="24" />
-        <p>慢慢说，好好听。<br />每一小步，都算数。</p>
+        <p>慢慢说，好好听。<br />每一步，都算数。</p>
         <span class="little-line"></span>
       </div>
       <RouterLink to="/space" class="space-link"

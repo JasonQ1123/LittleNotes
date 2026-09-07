@@ -32,7 +32,7 @@ onMounted(load);
   <div class="page-heading">
     <div>
       <span class="eyebrow">GROWING TOGETHER</span>
-      <h1>回顾统计</h1>
+      <h1>一起回顾</h1>
       <p>看看我们走过的路，找到下一步可以一起努力的方向。</p>
     </div>
     <select v-model="days" aria-label="统计时间范围" @change="load">
@@ -104,7 +104,7 @@ onMounted(load);
               <i
                 :style="{
                   width: `${(item.count / maxCategory) * 100}%`,
-                  background: index % 2 ? '#d8b99e' : '#95a78f',
+                  background: index % 2 ? 'var(--chart-peach)' : 'var(--chart-sage)',
                 }"
               ></i>
             </div>

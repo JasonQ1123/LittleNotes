@@ -38,7 +38,7 @@ onMounted(() => load());
   <div class="page-heading">
     <div>
       <span class="eyebrow">OUR NOTES</span>
-      <h1>矛盾记录</h1>
+      <h1>我们的纸条</h1>
       <p>记住问题，也记住我们为彼此做过的努力。</p>
     </div>
     <RouterLink :to="session.space ? '/records/new' : '/space'" class="btn primary"
