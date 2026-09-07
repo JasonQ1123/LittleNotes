@@ -20,6 +20,7 @@ model User {
   spaceId      String?
   space        Space?   @relation(fields: [spaceId], references: [id])
   sessions     Session[]
+  memberships  SpaceMembership[]
   createdAt    DateTime @default(now())
   @@index([spaceId])
 }
@@ -80,6 +81,38 @@ model Space {
   invitations Invitation[]
   records     Record[]
   createdAt   DateTime     @default(now())
+  status      String       @default("active")
+  lifecycleVersion Int     @default(1)
+  closedAt    DateTime?
+  closedById  String?
+  purgeAt     DateTime?
+  memberships SpaceMembership[]
+  restoreRequests SpaceRestoreRequest[]
+  @@index([status, purgeAt])
+}
+
+model SpaceMembership {
+  spaceId String
+  userId String
+  nicknameSnapshot String
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  @@id([spaceId, userId])
+  @@index([userId])
+}
+
+model SpaceRestoreRequest {
+  id String @id @default(cuid())
+  spaceId String
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  requestedById String
+  requesterAuthVersion Int
+  lifecycleVersion Int
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  resolvedAt DateTime?
+  @@index([spaceId, status])
 }
 
 model Invitation {

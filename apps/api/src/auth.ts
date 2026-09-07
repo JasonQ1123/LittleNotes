@@ -36,6 +36,7 @@ import {
 } from './dto';
 import { EmailService, invalidCode } from './email';
 import { Prisma } from '@prisma/client';
+import { spaceConflict } from './space-access';
 
 export const hashToken = (value: string) => createHash('sha256').update(value).digest('hex');
 export const PUBLIC = 'public';
@@ -48,6 +49,7 @@ export type Actor = {
   nickname: string;
   spaceId: string | null;
   avatarKey: string | null;
+  spaceVersion?: number;
 };
 // Kept inside the authentication service; never serialize this credential to a response.
 type OwnUser = Actor & { email: string | null; emailVerifiedAt: Date | null; authVersion: number };
@@ -56,6 +58,7 @@ export const memberSelect = { id: true, nickname: true, avatarKey: true } as con
 export const userSelect = { ...memberSelect, username: true, spaceId: true } as const;
 export const authSelect = {
   ...userSelect,
+  space: { select: { lifecycleVersion: true } },
   email: true,
   emailVerifiedAt: true,
   authVersion: true,
@@ -105,7 +108,15 @@ export class SessionGuard implements CanActivate {
     });
     if (!session || session.expiresAt.getTime() <= Date.now())
       throw new UnauthorizedException('登录已过期，请重新登录');
-    req.user = session.user;
+    req.user = { ...session.user, spaceVersion: session.user.space?.lifecycleVersion };
+    // Browser mutations carry their displayed space generation; never use it to grant access.
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers['x-space-id']) {
+      if (
+        req.headers['x-space-id'] !== session.user.spaceId ||
+        req.headers['x-space-version'] !== String(session.user.space?.lifecycleVersion)
+      )
+        throw spaceConflict();
+    }
     if (
       (!session.user.email || !session.user.emailVerifiedAt) &&
       !this.reflector.getAllAndOverride(EMAIL_OPTIONAL, [ctx.getHandler(), ctx.getClass()])
@@ -265,7 +276,7 @@ export class AuthService {
   requestResetCode(dto: EmailCodeDto, ip: string) {
     return this.db.atomic((tx) => this.email.request(tx, dto.email, 'reset', ip));
   }
-  private async verifyCurrent(user: Actor, password: string, ip: string) {
+  async verifyCurrent(user: Actor, password: string, ip: string) {
     await this.limitPasswordChange(user.id, ip);
     const credential = await this.db.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -275,11 +286,7 @@ export class AuthService {
       throw new BadRequestException('当前密码不正确');
     return credential;
   }
-  private async checkSession(
-    tx: Prisma.TransactionClient,
-    credential: VerifiedUser,
-    token: string,
-  ) {
+  async checkSession(tx: Prisma.TransactionClient, credential: VerifiedUser, token: string) {
     const session = await tx.session.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!session || session.userId !== credential.id || session.expiresAt.getTime() <= Date.now())
       throw new UnauthorizedException('登录已过期，请重新登录');

@@ -14,14 +14,15 @@ import { randomBytes } from 'node:crypto';
 import { Database } from './database';
 import { Actor, CurrentUser, hashToken, userSelect, withAvatar } from './auth';
 import { AcceptInvitationDto, CreateSpaceDto } from './dto';
+import { activeSpaceScope, invalidateRestoreRequests, requireActiveSpace } from './space-access';
 
 @Injectable()
 export class SpacesService {
   constructor(private db: Database) {}
   async current(user: Actor) {
     if (!user.spaceId) return null;
-    const space = await this.db.space.findUnique({
-      where: { id: user.spaceId },
+    const space = await this.db.space.findFirst({
+      where: activeSpaceScope(user),
       include: {
         members: { select: userSelect },
         invitations: {
@@ -43,13 +44,18 @@ export class SpacesService {
       const current = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
       if (current.spaceId) throw new ConflictException('你已经拥有一个共同空间');
       const space = await tx.space.create({ data: { name: dto.name } });
+      await invalidateRestoreRequests(tx, [user.id]);
       await tx.user.update({ where: { id: user.id }, data: { spaceId: space.id } });
+      await tx.spaceMembership.create({
+        data: { spaceId: space.id, userId: user.id, nicknameSnapshot: current.nickname },
+      });
       return space;
     });
   }
   invite(user: Actor) {
     return this.db.atomic(async (tx) => {
       if (!user.spaceId) throw new ConflictException('请先创建共同空间');
+      await requireActiveSpace(tx, user);
       if ((await tx.user.count({ where: { spaceId: user.spaceId } })) >= 2)
         throw new ConflictException('共同空间已经有两个人了');
       await tx.invitation.updateMany({
@@ -82,9 +88,22 @@ export class SpacesService {
         invitation.expiresAt.getTime() <= Date.now()
       )
         throw new NotFoundException('邀请已失效，请让对方重新发送');
+      const space = await tx.space.findFirst({
+        where: { id: invitation.spaceId, status: 'active' },
+      });
+      if (!space) throw new NotFoundException('邀请已失效，请让对方重新发送');
+      const locked = await tx.space.updateMany({
+        where: { id: space.id, status: 'active', lifecycleVersion: space.lifecycleVersion },
+        data: { lifecycleVersion: space.lifecycleVersion },
+      });
+      if (!locked.count) throw new NotFoundException('邀请已失效，请让对方重新发送');
       if ((await tx.user.count({ where: { spaceId: invitation.spaceId } })) >= 2)
         throw new ConflictException('这个空间已经有两个人了');
+      await invalidateRestoreRequests(tx, [user.id]);
       await tx.user.update({ where: { id: user.id }, data: { spaceId: invitation.spaceId } });
+      await tx.spaceMembership.create({
+        data: { spaceId: invitation.spaceId, userId: user.id, nicknameSnapshot: current.nickname },
+      });
       await tx.invitation.updateMany({
         where: { spaceId: invitation.spaceId, acceptedAt: null, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -97,12 +116,15 @@ export class SpacesService {
     });
   }
   async revoke(user: Actor, id: string) {
-    const result = await this.db.invitation.updateMany({
-      where: { id, creatorId: user.id, spaceId: user.spaceId || '', acceptedAt: null },
-      data: { revokedAt: new Date() },
+    return this.db.atomic(async (tx) => {
+      await requireActiveSpace(tx, user);
+      const result = await tx.invitation.updateMany({
+        where: { id, creatorId: user.id, spaceId: user.spaceId || '', acceptedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (!result.count) throw new NotFoundException('邀请不存在');
+      return { ok: true };
     });
-    if (!result.count) throw new NotFoundException('邀请不存在');
-    return { ok: true };
   }
 }
 

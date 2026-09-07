@@ -13,10 +13,34 @@ export interface Member {
   avatarUrl: string | null;
 }
 export interface Space {
+  lifecycleVersion: number;
   id: string;
   name: string;
   members: Member[];
   invitations: { id: string; expiresAt: string }[];
+}
+export interface RestoreRequest {
+  id: string;
+  requestedById: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired' | 'invalidated';
+  createdAt: string;
+  expiresAt: string;
+}
+export interface ClosedSpace {
+  id: string;
+  name: string;
+  lifecycleVersion: number;
+  closedAt: string;
+  purgeAt: string;
+  members: Member[];
+  canRestore: boolean;
+  restoreRequest: RestoreRequest | null;
+}
+export interface ClosedSpaceList {
+  items: ClosedSpace[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 export interface PerspectiveContent {
   facts: string;

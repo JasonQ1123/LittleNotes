@@ -8,6 +8,7 @@ import AppIcon from '../components/AppIcon.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 import ProfileSettings from '../components/ProfileSettings.vue';
 import PasswordChangeDialog from '../components/PasswordChangeDialog.vue';
+import SpaceLifecycleSettings from '../components/SpaceLifecycleSettings.vue';
 const session = useSession();
 const router = useRouter();
 const { busy, run } = useTask();
@@ -17,21 +18,21 @@ const changingPassword = ref(false);
 async function create() {
   await run(async () => {
     await api('/spaces', { method: 'POST', body: { name: name.value } });
-    await session.refresh();
+    await session.refresh(true);
   }, '我们的共同空间，建立好啦');
 }
 async function invite() {
   await run(async () => {
     const result = await api<{ token: string }>('/spaces/invitations', { method: 'POST' });
     inviteLink.value = `${window.location.origin}/invite/${result.token}`;
-    await session.refresh();
+    await session.refresh(true);
   });
 }
 async function revoke(id: string) {
   await run(async () => {
     await api(`/spaces/invitations/${id}`, { method: 'DELETE' });
     inviteLink.value = '';
-    await session.refresh();
+    await session.refresh(true);
   }, '这份邀请已撤销');
 }
 async function copy() {
@@ -135,6 +136,7 @@ async function logout() {
           {{ busy ? '正在建立…' : '创建共同空间' }}<AppIcon name="arrow" :size="17" />
         </button>
       </form>
+      <SpaceLifecycleSettings />
     </section>
     <div class="settings-side">
       <section class="panel settings-card">
@@ -152,14 +154,38 @@ async function logout() {
           <AppIcon name="lock" :size="17" />修改密码
         </button>
       </section>
-      <section class="gentle-card">
-        <AppIcon name="lock" :size="24" />
-        <h3>关于这里的小秘密</h3>
-        <p>
-          私密草稿和未发布的视角只有本人可见。分享后的纸条会留在你们的共同空间，双方可以一起结束跟进、归档留存。
-        </p>
-      </section>
     </div>
   </div>
+  <aside class="space-privacy-note" aria-label="关于这里的小秘密">
+    <AppIcon name="lock" :size="18" />
+    <p>
+      <strong>关于这里的小秘密</strong>
+      私密草稿和未发布的视角只有本人可见。分享后的纸条会留在你们的共同空间，双方可以一起结束跟进、归档留存。
+    </p>
+  </aside>
   <PasswordChangeDialog v-if="changingPassword" @cancel="changingPassword = false" />
 </template>
+<style scoped>
+.space-privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--border);
+  color: var(--sage-dark);
+}
+.space-privacy-note > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.space-privacy-note p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.85;
+}
+.space-privacy-note strong {
+  margin-right: 10px;
+  font-weight: 600;
+}
+</style>

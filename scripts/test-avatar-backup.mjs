@@ -9,6 +9,7 @@ import {
   readFileSync,
   readdirSync,
   utimesSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -49,6 +50,7 @@ const common = [
   '    *pg_restore*--list*) cat > /dev/null ;;',
   '    *pg_restore*) cat > "$PROJECT_DIR/restored-references" ;;',
   '    *information_schema*) if [[ -f "$PROJECT_DIR/legacy" ]]; then echo f; else echo t; fi ;;',
+  '    *psql*SpaceMembership*) if [[ -f "$PROJECT_DIR/lifecycle-invalid" ]]; then echo 1; else echo 0; fi ;;',
   '    *psql*avatarKey*)',
   '      if [[ "$*" == *littlenotes_verify_* ]]; then cat "$PROJECT_DIR/restored-references"; else cat "$PROJECT_DIR/references"; fi ;;',
   '    *) return 0 ;;',
@@ -86,6 +88,10 @@ assert.equal(existsSync(join(images, current)), true);
 run('verify-backup.sh', [backup]);
 assert.equal(readFileSync(join(sandbox, 'restored-references'), 'utf8'), old + '\n');
 console.log('PASS: snapshot references survive concurrent replacement and orphan cleanup');
+writeFileSync(join(sandbox, 'lifecycle-invalid'), '');
+run('verify-backup.sh', [backup], false);
+unlinkSync(join(sandbox, 'lifecycle-invalid'));
+console.log('PASS: inconsistent space membership fails restored-backup verification');
 
 writeFileSync(join(sandbox, 'fail-dump'), '');
 const sets = readdirSync(backups).filter((name) => name.endsWith('.dump'));

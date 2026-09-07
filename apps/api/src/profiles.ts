@@ -23,6 +23,7 @@ import sharp from 'sharp';
 import { Actor, CurrentUser, authSelect, ownProfile } from './auth';
 import { Database } from './database';
 import { UpdateProfileDto } from './dto';
+import { activeSpaceScope } from './space-access';
 
 const avatarLimit = 192 * 1024;
 const avatarName = /^[a-f0-9]{32}\.webp$/;
@@ -91,7 +92,7 @@ export class ProfilesService {
     const owner = await this.db.user.findFirst({
       where: {
         id,
-        OR: [{ id: user.id }, ...(user.spaceId ? [{ spaceId: user.spaceId }] : [])],
+        OR: [{ id: user.id }, { space: activeSpaceScope(user) }],
       },
       select: { avatarKey: true },
     });

@@ -29,4 +29,21 @@ if [[ "$has_avatars" == t ]]; then
     [[ "$bytes" -gt 0 ]] || { echo '备份缺少被引用的头像'; exit 1; }
   done <<< "$references"
 fi
-echo '数据库已恢复至临时库，头像引用及配套归档检查通过；原业务数据库保持原样。'
+has_lifecycle="$(dc exec -T db psql -U littlenotes -d "$verify_db" -At -v ON_ERROR_STOP=1 -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='SpaceMembership');")"
+if [[ "$has_lifecycle" == t ]]; then
+  inconsistent="$(dc exec -T db psql -U littlenotes -d "$verify_db" -At -v ON_ERROR_STOP=1 -c '
+    SELECT count(*) FROM "Space" s WHERE
+      (SELECT count(*) FROM "SpaceMembership" m WHERE m."spaceId"=s.id) NOT BETWEEN 1 AND 2
+      OR (s.status = '\''active'\'' AND (
+        (SELECT count(*) FROM "User" u WHERE u."spaceId"=s.id) <>
+        (SELECT count(*) FROM "SpaceMembership" m WHERE m."spaceId"=s.id)
+        OR EXISTS (SELECT 1 FROM "SpaceMembership" m JOIN "User" u ON u.id=m."userId"
+          WHERE m."spaceId"=s.id AND u."spaceId" IS DISTINCT FROM s.id)))
+      OR (s.status = '\''closed'\'' AND (s."closedAt" IS NULL OR s."purgeAt" IS NULL
+        OR EXISTS (SELECT 1 FROM "User" u WHERE u."spaceId"=s.id)))
+      OR EXISTS (SELECT 1 FROM "Record" r WHERE r."spaceId"=s.id
+        AND NOT EXISTS (SELECT 1 FROM "SpaceMembership" m WHERE m."spaceId"=s.id AND m."userId"=r."authorId"));
+  ')"
+  [[ "$inconsistent" == 0 ]] || { echo '备份中的空间状态或成员关系不一致，请先核查。'; exit 1; }
+fi
+echo '数据库已恢复至临时库，空间成员关系、头像引用及配套归档检查通过；原业务数据库保持原样。'

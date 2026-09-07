@@ -4,6 +4,7 @@ import { Actor, CurrentUser } from './auth';
 import { Database } from './database';
 import { CATEGORIES, RATINGS, StatisticsQueryDto } from './dto';
 import { recordInclude, RecordsService } from './records';
+import { activeSpaceScope } from './space-access';
 
 @Injectable()
 export class DashboardService {
@@ -81,7 +82,7 @@ export class DashboardService {
   }
   async statistics(user: Actor, days: number) {
     const all = await this.db.record.findMany({
-      where: { spaceId: user.spaceId || '', status: { not: 'draft' } },
+      where: { ...this.records.scope(user), status: { not: 'draft' } },
       include: recordInclude,
       orderBy: { occurredAt: 'desc' },
     });
@@ -114,7 +115,7 @@ export class DashboardService {
     });
     const members = user.spaceId
       ? await this.db.user.findMany({
-          where: { spaceId: user.spaceId },
+          where: { space: activeSpaceScope(user) },
           select: { id: true, nickname: true },
         })
       : [];

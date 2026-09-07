@@ -33,6 +33,21 @@ export const CATEGORIES = [
   '其他',
 ];
 export const RATINGS = ['明显改善', '部分改善', '没有改善', '变差', '暂时无法判断'];
+export class SpacePasswordDto {
+  @ApiProperty() @IsString() @MinLength(8) @MaxLength(128) currentPassword!: string;
+}
+export class SpaceLifecycleDto extends SpacePasswordDto {
+  @ApiProperty() @IsInt() @Min(1) lifecycleVersion!: number;
+}
+export class ClosedSpacesQueryDto {
+  @ApiPropertyOptional()
+  @ValidateIf((_o, value) => value !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  page?: number;
+}
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 const IsOptional = () => ValidateIf((_object, value) => value !== undefined);
 

@@ -13,7 +13,7 @@ async function accept() {
       method: 'POST',
       body: { token: route.params.token },
     });
-    await session.refresh();
+    await session.refresh(true);
     await router.replace('/');
   }, '欢迎来到属于你们的小天地');
 }

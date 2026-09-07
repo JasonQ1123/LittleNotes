@@ -82,7 +82,12 @@ export class AiService {
       });
     if (kind === 'summary') return this.provider.summarizeRecord(this.project(record));
     const history = await this.records.db.record.findMany({
-      where: { spaceId: record.spaceId, status: { not: 'draft' }, id: { not: id } },
+      where: {
+        ...this.records.scope(user),
+        spaceId: record.spaceId,
+        status: { not: 'draft' },
+        id: { not: id },
+      },
       include: recordInclude,
     });
     return this.provider.suggestRelatedRecords(

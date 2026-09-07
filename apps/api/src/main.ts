@@ -26,6 +26,11 @@ import { AgreementsController, AgreementsService } from './agreements';
 import { DashboardController, DashboardService } from './dashboard';
 import { AiController, AiService } from './ai';
 import { ProfilesController, ProfilesService } from './profiles';
+import {
+  SpaceCleanupService,
+  SpaceLifecycleController,
+  SpaceLifecycleService,
+} from './space-lifecycle';
 
 @Controller('health')
 class HealthController {
@@ -76,6 +81,7 @@ class Errors implements ExceptionFilter {
     AuthController,
     MockMailController,
     SpacesController,
+    SpaceLifecycleController,
     RecordsController,
     AgreementsController,
     DashboardController,
@@ -87,6 +93,8 @@ class Errors implements ExceptionFilter {
     AuthService,
     EmailService,
     SpacesService,
+    SpaceLifecycleService,
+    SpaceCleanupService,
     RecordsService,
     AgreementsService,
     DashboardService,

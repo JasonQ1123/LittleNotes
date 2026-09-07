@@ -59,7 +59,7 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const session = useSession();
   try {
-    await session.ensure();
+    await session.refresh();
   } catch {
     if (!to.meta.public) return { path: '/login', query: { connection: '1' } };
   }

@@ -17,6 +17,7 @@ import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@prisma/client';
 import { Actor, CurrentUser, memberSelect, withAvatar } from './auth';
 import { Database } from './database';
+import { activeSpaceScope, requireActiveSpace } from './space-access';
 import {
   CreateRecordDto,
   LinkDto,
@@ -27,6 +28,7 @@ import {
 } from './dto';
 
 const linkSelect = {
+  spaceId: true,
   id: true,
   title: true,
   status: true,
@@ -34,7 +36,7 @@ const linkSelect = {
   authorId: true,
 } as const;
 export const recordInclude = Prisma.validator<Prisma.RecordInclude>()({
-  space: { select: { name: true, members: { select: memberSelect } } },
+  space: { select: { name: true, lifecycleVersion: true, members: { select: memberSelect } } },
   perspectives: true,
   agreements: {
     orderBy: { version: 'desc' },
@@ -59,6 +61,7 @@ export class RecordsService {
   scope(user: Actor): Prisma.RecordWhereInput {
     return {
       spaceId: user.spaceId || '',
+      space: activeSpaceScope(user),
       OR: [{ status: { not: 'draft' } }, { authorId: user.id }],
     };
   }
@@ -72,6 +75,7 @@ export class RecordsService {
       include: recordInclude,
     });
     if (!record) throw new NotFoundException('这张纸条不存在，或你没有查看权限');
+    if (tx !== this.db) await requireActiveSpace(tx, user);
     return record;
   }
   editable(record: FullRecord) {
@@ -114,7 +118,10 @@ export class RecordsService {
       related: [
         ...new Map(
           [...relatedTo.map((l) => l.related), ...relatedFrom.map((l) => l.record)]
-            .filter((r) => r.status !== 'draft' || r.authorId === user.id)
+            .filter(
+              (r) =>
+                r.spaceId === record.spaceId && (r.status !== 'draft' || r.authorId === user.id),
+            )
             .map((r) => [r.id, r]),
         ).values(),
       ],
@@ -156,19 +163,22 @@ export class RecordsService {
   }
   async create(user: Actor, dto: CreateRecordDto) {
     if (!user.spaceId) throw new ConflictException('请先创建或加入共同空间');
-    const record = await this.db.record.create({
-      data: {
-        title: dto.title,
-        description: dto.description,
-        category: dto.category,
-        occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
-        tagsJson: JSON.stringify((dto.tags || []).map((t) => t.trim()).filter(Boolean)),
-        spaceId: user.spaceId,
-        authorId: user.id,
-      },
-      include: recordInclude,
+    return this.db.atomic(async (tx) => {
+      const space = await requireActiveSpace(tx, user);
+      const record = await tx.record.create({
+        data: {
+          title: dto.title,
+          description: dto.description,
+          category: dto.category,
+          occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
+          tagsJson: JSON.stringify((dto.tags || []).map((t) => t.trim()).filter(Boolean)),
+          spaceId: space.id,
+          authorId: user.id,
+        },
+        include: recordInclude,
+      });
+      return this.view(record, user);
     });
-    return this.view(record, user);
   }
   async update(user: Actor, id: string, dto: UpdateRecordDto) {
     await this.db.atomic(async (tx) => {

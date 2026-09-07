@@ -9,6 +9,19 @@ const session = useSession();
 const route = useRoute();
 const router = useRouter();
 const icpNumber = ref('');
+let spaceTimer: ReturnType<typeof setInterval> | undefined;
+function syncSpace() {
+  if (document.visibilityState !== 'hidden' && session.user && !session.user.requiresEmailBinding)
+    void session.refresh().catch(() => undefined);
+}
+function spaceUpdated(event: Event) {
+  if ((event as CustomEvent).detail.closed) {
+    notify('共同空间已关闭，记录已隐藏，可在30天内申请恢复');
+    if (route.path !== '/space') void router.replace('/space');
+  } else {
+    notify('共同空间状态已更新');
+  }
+}
 const nav = [
   { to: '/', label: '我们的小天地', icon: 'home' },
   { to: '/records', label: '矛盾记录', icon: 'note' },
@@ -22,6 +35,7 @@ const today = new Date().toLocaleDateString('zh-CN', {
 });
 const partner = computed(() => session.space?.members.find((m) => m.id !== session.user?.id));
 function expired() {
+  if (!session.user || route.meta.public) return;
   session.expire();
   notify('登录已过期，请重新登录', true);
   router.replace({ path: '/login', query: { redirect: route.fullPath } });
@@ -35,6 +49,11 @@ async function bindingRequired() {
   }
 }
 onMounted(() => {
+  window.addEventListener('space-state-changed', syncSpace);
+  window.addEventListener('space-updated', spaceUpdated);
+  window.addEventListener('focus', syncSpace);
+  document.addEventListener('visibilitychange', syncSpace);
+  spaceTimer = setInterval(syncSpace, 30_000);
   window.addEventListener('session-expired', expired);
   window.addEventListener('email-binding-required', bindingRequired);
   api<{ icpNumber?: string }>('/health')
@@ -46,6 +65,11 @@ onMounted(() => {
     });
 });
 onBeforeUnmount(() => {
+  clearInterval(spaceTimer);
+  window.removeEventListener('space-state-changed', syncSpace);
+  window.removeEventListener('space-updated', spaceUpdated);
+  window.removeEventListener('focus', syncSpace);
+  document.removeEventListener('visibilitychange', syncSpace);
   window.removeEventListener('session-expired', expired);
   window.removeEventListener('email-binding-required', bindingRequired);
 });
@@ -101,7 +125,9 @@ onBeforeUnmount(() => {
           ><UserAvatar :user="session.user"
         /></RouterLink>
       </header>
-      <main id="main-content" class="main-content"><RouterView :key="route.path" /></main>
+      <main id="main-content" class="main-content">
+        <RouterView v-if="session.user" :key="route.path + session.spaceKey" />
+      </main>
       <footer class="page-footer">
         <AppIcon name="heart" :size="13" />把心事写下来，把彼此放在心上。
       </footer>
