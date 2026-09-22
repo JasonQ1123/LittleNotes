@@ -1,14 +1,12 @@
 # 阿里云部署「小纸条」
 
-上线记录：2026-09-08 用户确认空间解绑、关闭与限时恢复已上线；此前，2026-09-07 用户确认版本 `9248d16` 的阿里云升级全部成功，包含昵称头像、修改密码和邮箱账号安全功能。当前入口为 [https://<server-ip>](https://<server-ip>)。以下安装、检查与恢复步骤保留用于后续维护。
+上线记录：2026-09-22 用户确认手动彻底删除与域名、备案号切换已推送生产，当前入口为 [https://web.littlenotes.cn](https://web.littlenotes.cn)（`沪ICP备2026047310号`）。此前，2026-09-08 用户确认空间解绑、关闭与限时恢复已上线；2026-09-07 用户确认版本 `9248d16` 的阿里云升级全部成功，包含昵称头像、修改密码和邮箱账号安全功能。以下安装、检查与恢复步骤保留用于后续维护。
 
 ## 邮箱验证码版本升级前置要求
 
-当前通过 Workbench 升级现有 HTTPS 公网 IP 服务，请直接按 [本次上传、收信验证、升级和回退步骤](../docs/WORKBENCH_EMAIL_UPGRADE.md) 操作。下面保留通用安装及维护说明。
+历史升级步骤见 [Workbench 上传、收信验证、升级和回退步骤](../docs/WORKBENCH_EMAIL_UPGRADE.md)。下面保留通用安装及维护说明。
 
 本版本要求新旧账号验证邮箱后使用业务功能。**先按 [邮箱部署与投递验收](../docs/EMAIL_RECOVERY.md#上线前真实投递验收) 验证阿里云服务器能向 QQ、163 真实投递，再执行下面的部署命令。** 在 `deploy/.env` 补齐 `SMTP_USER`、`SMTP_AUTH_CODE`、独立 `EMAIL_HMAC_SECRET`，实际确认收信后设 `EMAIL_SMTP_VERIFIED=1`。已有配置会保留，新配置不会自动覆盖；未通过验收时部署脚本退出并保留原服务。
-
-已使用此前公网 IP 补丁的服务器，升级继续识别 `deploy/.ip-enabled`，加载原有 `compose.ip.yaml` 与 `Caddyfile.ip`，保持当前 HTTPS IP 入口。请保留这些服务器文件，以及 `.env` 中的 `PUBLIC_IP`、`ACME_EMAIL`；缺失 IP 配置时脚本会退出，不切换入口。
 
 新增 `20260906020000_email_recovery` 迁移只给旧账号添加空邮箱、空验证时间和初始认证版本，同时创建验证码、邮件任务、发送限额表。旧账号、密码哈希、会话、昵称头像和业务记录均保留；旧会话访问业务时也会被要求绑定。生产强制 SMTP，禁止 mock；请勿将模拟收件箱用于生产。
 
@@ -157,7 +155,7 @@ sudo bash deploy/verify-backup.sh /opt/littlenotes/backups/实际文件名.dump
 
 本次增加用户头像字段，需要更新前后端并执行增量数据库迁移，不能只覆盖前端构建文件。现有昵称、账号、空间和记录保持原样，未上传头像的账号继续显示昵称首字。
 
-更新源码后执行 `sudo bash deploy/deploy.sh`。脚本会通过 `prepare-uploads.sh` 创建 `/opt/littlenotes/uploads/avatars` 并设置为 API 的 UID/GID 1000 可写；Compose 将此目录持久挂载到 API 容器。容器重建不会删除头像。已有公网 IP / HTTPS 配置应继续保留；头像请求适配原有的 256 KB 代理限制，无需扩大普通 API 请求体限制。
+更新源码后执行 `sudo bash deploy/deploy.sh`。脚本会通过 `prepare-uploads.sh` 创建 `/opt/littlenotes/uploads/avatars` 并设置为 API 的 UID/GID 1000 可写；Compose 将此目录持久挂载到 API 容器。容器重建不会删除头像。已有 HTTPS 域名配置应继续保留；头像请求适配原有的 256 KB 代理限制，无需扩大普通 API 请求体限制。
 
 本地开发默认使用 `apps/api/uploads/avatars`，可通过 `AVATAR_STORAGE_DIR` 指定其他位置。图片经过客户端裁剪和服务端重新编码，存储为 256×256 WebP；读取仍验证登录和当前空间权限。
 

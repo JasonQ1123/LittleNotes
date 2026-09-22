@@ -45,30 +45,15 @@ function selection(name, files, expected) {
     'source deploy/common.sh; printf "%s\\n" "${COMPOSE_ARGS[@]}"',
   );
   assert.equal(result.status, 0, result.stderr);
-  const overrides = result.stdout
-    .split('\n')
-    .filter((line) => /compose\.(ip|public)\.yaml$/.test(line));
+  const overrides = result.stdout.split('\n').filter((line) => /compose\.public\.yaml$/.test(line));
   assert.deepEqual(
     overrides.map((line) => line.split('/').at(-1)),
     expected,
   );
 }
 selection('internal', {}, []);
-selection('ip', { '.ip-enabled': '', 'compose.ip.yaml': '', 'Caddyfile.ip': '' }, [
-  'compose.ip.yaml',
-]);
-selection('domain', { '.public-enabled': '', '.ip-enabled': '' }, ['compose.public.yaml']);
-for (const missing of ['compose.ip.yaml', 'Caddyfile.ip']) {
-  const files = { '.ip-enabled': '', 'compose.ip.yaml': '', 'Caddyfile.ip': '' };
-  delete files[missing];
-  const result = run(fixture('missing-' + missing, files), 'source deploy/common.sh');
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /IP.*配置缺失/);
-  assert.doesNotMatch(result.stderr, /UNEXPECTED_DOCKER_CALL/);
-}
-console.log(
-  'PASS: internal, HTTPS IP and domain selection; incomplete IP configuration stops safely',
-);
+selection('domain', { '.public-enabled': '' }, ['compose.public.yaml']);
+console.log('PASS: internal and domain compose selection');
 
 for (const flag of ['', 'EMAIL_SMTP_VERIFIED=0\n', 'EMAIL_SMTP_VERIFIED=10\n']) {
   const folder = fixture('gate-' + Buffer.from(flag).toString('hex'), { '.env': flag });
