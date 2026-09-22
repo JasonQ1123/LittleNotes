@@ -26,6 +26,25 @@ const closedInclude = Prisma.validator<Prisma.SpaceInclude>()({
 });
 type LifecycleSpace = Prisma.SpaceGetPayload<{ include: typeof closedInclude }>;
 
+// Both callers must validate the target inside the same transaction. Lock the closed
+// version before deleting children so a concurrent restore cannot reopen it midway.
+async function purgeClosedSpace(
+  tx: Prisma.TransactionClient,
+  space: { id: string; lifecycleVersion: number },
+) {
+  const locked = await tx.space.updateMany({
+    where: { id: space.id, status: 'closed', lifecycleVersion: space.lifecycleVersion },
+    data: { lifecycleVersion: space.lifecycleVersion },
+  });
+  if (!locked.count) throw spaceConflict();
+  // Record children cascade; outer space relations restrict deletion.
+  await tx.record.deleteMany({ where: { spaceId: space.id } });
+  await tx.invitation.deleteMany({ where: { spaceId: space.id } });
+  await tx.spaceRestoreRequest.deleteMany({ where: { spaceId: space.id } });
+  await tx.spaceMembership.deleteMany({ where: { spaceId: space.id } });
+  await tx.space.delete({ where: { id: space.id } });
+}
+
 @Injectable()
 export class SpaceLifecycleService {
   constructor(
@@ -111,6 +130,19 @@ export class SpaceLifecycleService {
       this.db.space.count({ where }),
     ]);
     return { items: spaces.map((space) => this.summary(space)), total, page, pageSize: 20 };
+  }
+  async purge(user: Actor, id: string, dto: SpaceLifecycleDto, token: string, ip: string) {
+    await this.require(this.db, user, id);
+    const credential = await this.auth.verifyCurrent(user, dto.currentPassword, ip);
+    return this.db.atomic(async (tx) => {
+      await this.auth.checkSession(tx, credential, token);
+      const space = await this.require(tx, user, id);
+      // Deletion is independent of restoration eligibility and the retention deadline.
+      if (space.status !== 'closed' || space.lifecycleVersion !== dto.lifecycleVersion)
+        throw spaceConflict();
+      await purgeClosedSpace(tx, space);
+      return { ok: true };
+    });
   }
   async close(user: Actor, id: string, dto: SpaceLifecycleDto, token: string, ip: string) {
     // Check membership before prompting credential work; unrelated IDs always return 404.
@@ -316,12 +348,7 @@ export class SpaceCleanupService implements OnApplicationBootstrap, OnModuleDest
             where: { id: candidate.id, status: 'closed', purgeAt: { lte: new Date() } },
           });
           if (!space) return 0;
-          // Child tables already cascade from Record. The outer space relations restrict deletion.
-          await tx.record.deleteMany({ where: { spaceId: space.id } });
-          await tx.invitation.deleteMany({ where: { spaceId: space.id } });
-          await tx.spaceRestoreRequest.deleteMany({ where: { spaceId: space.id } });
-          await tx.spaceMembership.deleteMany({ where: { spaceId: space.id } });
-          await tx.space.delete({ where: { id: space.id } });
+          await purgeClosedSpace(tx, space);
           return 1;
         });
       }
@@ -340,6 +367,14 @@ export class SpaceLifecycleController {
   constructor(private service: SpaceLifecycleService) {}
   @Get('closed') closed(@CurrentUser() user: Actor, @Query() query: ClosedSpacesQueryDto) {
     return this.service.closed(user, query.page);
+  }
+  @Post(':id/purge') purge(
+    @CurrentUser() user: Actor,
+    @Param('id') id: string,
+    @Body() dto: SpaceLifecycleDto,
+    @Req() req: Request,
+  ) {
+    return this.service.purge(user, id, dto, tokenOf(req), req.ip || '');
   }
   @Post(':id/close') close(
     @CurrentUser() user: Actor,

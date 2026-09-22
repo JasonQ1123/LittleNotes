@@ -27,6 +27,7 @@ const id = useId();
       <button
         type="button"
         class="icon-button password-toggle"
+        :disabled="disabled"
         :aria-label="`${show ? '隐藏' : '显示'}${label}`"
         :aria-controls="id"
         @click="show = !show"

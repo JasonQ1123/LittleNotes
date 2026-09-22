@@ -11,7 +11,7 @@ import type { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from '../src/main';
 import { Database } from '../src/database';
-import { Actor, hashToken } from '../src/auth';
+import { Actor, AuthService, hashToken } from '../src/auth';
 import { RecordsService } from '../src/records';
 import { SpaceCleanupService, SpaceLifecycleService } from '../src/space-lifecycle';
 
@@ -62,6 +62,10 @@ describe('空间关闭、限时恢复和到期清理', { concurrency: false }, (
   const close = (owner: Account, space: { id: string; lifecycleVersion: number }) =>
     owner.agent
       .post('/api/spaces/' + space.id + '/close')
+      .send({ currentPassword: password, lifecycleVersion: space.lifecycleVersion });
+  const purge = (owner: Account, space: { id: string; lifecycleVersion: number }) =>
+    owner.agent
+      .post('/api/spaces/' + space.id + '/purge')
       .send({ currentPassword: password, lifecycleVersion: space.lifecycleVersion });
   const restore = (
     owner: Account,
@@ -548,6 +552,253 @@ describe('空间关闭、限时恢复和到期清理', { concurrency: false }, (
     assert.ok(await db.user.findUnique({ where: { id: b.user.id } }));
   });
 
+  it('任一原成员可彻底删除完整数据，保留账号、头像、新空间和新记录', async () => {
+    for (const deleting of ['a', 'b'] as const) {
+      const pair = await fixture();
+      const { a, b, space } = pair;
+      const content = await contents(a, b, space.id);
+      await db.record.create({
+        data: { spaceId: space.id, authorId: b.user.id, title: '对方草稿' },
+      });
+      await db.user.update({
+        where: { id: a.user.id },
+        data: { avatarKey: 'retained-avatar.webp' },
+      });
+      const closed = (await close(a, space).expect(201)).body;
+      await restore(a, closed).expect(201);
+      const other = (await a.agent.post('/api/spaces').send({ name: '新的空间' }).expect(201)).body;
+      const newRecord = (await a.agent.post('/api/records').send({ title: '新纸条' }).expect(201))
+        .body;
+      assert.deepEqual((await purge(pair[deleting], closed).expect(201)).body, { ok: true });
+      assert.equal(await db.space.findUnique({ where: { id: space.id } }), null);
+      assert.equal(await db.record.count({ where: { spaceId: space.id } }), 0);
+      assert.equal(await db.invitation.count({ where: { spaceId: space.id } }), 0);
+      assert.equal(await db.spaceMembership.count({ where: { spaceId: space.id } }), 0);
+      assert.equal(await db.spaceRestoreRequest.count({ where: { spaceId: space.id } }), 0);
+      assert.equal(await db.perspective.count({ where: { recordId: content.record.id } }), 0);
+      assert.equal(await db.agreement.count({ where: { recordId: content.record.id } }), 0);
+      assert.equal(
+        await db.agreementConfirmation.count({ where: { agreementId: content.agreement.id } }),
+        0,
+      );
+      assert.equal(await db.reviewCycle.count({ where: { agreementId: content.agreement.id } }), 0);
+      assert.equal(await db.review.count({ where: { cycleId: content.cycle.id } }), 0);
+      assert.equal(await db.reconciliation.count({ where: { recordId: content.record.id } }), 0);
+      assert.equal(await db.archiveVote.count({ where: { recordId: content.record.id } }), 0);
+      assert.equal(
+        await db.recordLink.count({
+          where: { OR: [{ recordId: content.record.id }, { relatedId: content.linked.id }] },
+        }),
+        0,
+      );
+      const retained = await db.user.findUniqueOrThrow({ where: { id: a.user.id } });
+      assert.equal(retained.spaceId, other.id);
+      assert.equal(retained.avatarKey, 'retained-avatar.webp');
+      assert.ok(await db.user.findUnique({ where: { id: b.user.id } }));
+      assert.ok(await db.record.findUnique({ where: { id: newRecord.id } }));
+      assert.equal((await a.agent.get('/api/spaces/closed').expect(200)).body.total, 0);
+      assert.equal((await b.agent.get('/api/spaces/closed').expect(200)).body.total, 0);
+      await purge(pair[deleting], closed).expect(404);
+    }
+  });
+
+  it('单人空间和已到期尚未清理的空间均可手动删除', async () => {
+    for (const expired of [false, true]) {
+      const { a, space } = await fixture(false);
+      const closed = (await close(a, space).expect(201)).body;
+      if (expired)
+        await db.space.update({ where: { id: space.id }, data: { purgeAt: new Date(0) } });
+      await purge(a, closed).expect(201);
+      assert.equal(await db.space.findUnique({ where: { id: space.id } }), null);
+      assert.ok(await db.user.findUnique({ where: { id: a.user.id } }));
+    }
+  });
+
+  it('待处理恢复申请不会阻止删除，删除后双方都不能再恢复', async () => {
+    const { a, b, space } = await fixture();
+    const closed = (await close(a, space).expect(201)).body;
+    const pending = (await restore(a, closed).expect(201)).body.restoreRequest;
+    await purge(b, closed).expect(201);
+    await respond(b, space.id, pending.id).expect(404);
+    await restore(a, closed).expect(404);
+    assert.equal(await db.spaceRestoreRequest.findUnique({ where: { id: pending.id } }), null);
+  });
+
+  it('手动删除校验登录、邮箱、原成员、密码、请求来源和版本', async () => {
+    const { a, space } = await fixture(false);
+    const closed = (await close(a, space).expect(201)).body;
+    const path = '/api/spaces/' + space.id + '/purge';
+    await request(app.getHttpServer()).post(path).send({}).expect(401);
+    await purge(await account(), closed).expect(404);
+    await a.agent
+      .post(path)
+      .send({ currentPassword: 'wrong-password', lifecycleVersion: closed.lifecycleVersion })
+      .expect(400);
+    await a.agent.post(path).send({ currentPassword: password }).expect(400);
+    await a.agent.post(path).send({ currentPassword: password, lifecycleVersion: 0 }).expect(400);
+    await a.agent.post(path).send({ currentPassword: password, lifecycleVersion: '2' }).expect(400);
+    await purge(a, { ...closed, lifecycleVersion: 99 }).expect(409);
+    await purge(a, closed).set('Origin', 'https://other.example').expect(403);
+    await db.user.update({ where: { id: a.user.id }, data: { emailVerifiedAt: null } });
+    assert.equal((await purge(a, closed).expect(403)).body.code, 'EMAIL_BINDING_REQUIRED');
+    assert.ok(await db.space.findUnique({ where: { id: space.id } }));
+  });
+
+  it('开放空间及恢复后新一轮关闭均拒绝旧删除请求', async () => {
+    const { a, space } = await fixture(false);
+    await purge(a, space).expect(409);
+    const closed = (await close(a, space).expect(201)).body;
+    await restore(a, closed, false).expect(201);
+    await purge(a, closed).expect(409);
+    const current = (await a.agent.get('/api/spaces/current').expect(200)).body;
+    const again = (await close(a, current).expect(201)).body;
+    await db.passwordChangeLimit.deleteMany();
+    assert.equal((await purge(a, closed).expect(409)).body.code, 'SPACE_CHANGED');
+    assert.equal(
+      (await db.space.findUniqueOrThrow({ where: { id: space.id } })).lifecycleVersion,
+      again.lifecycleVersion,
+    );
+    await purge(a, again).expect(201);
+  });
+
+  it('密码验证后的会话撤销、过期、认证变化及原成员变化都会阻止删除', async (context) => {
+    for (const change of ['session', 'expiry', 'auth', 'membership']) {
+      const { a, space } = await fixture(false);
+      const closed = (await close(a, space).expect(201)).body;
+      const auth = app.get(AuthService);
+      const original = auth.verifyCurrent.bind(auth);
+      const hook = context.mock.method(
+        auth,
+        'verifyCurrent',
+        async (...args: Parameters<typeof original>) => {
+          const credential = await original(...args);
+          if (change === 'session')
+            await db.session.delete({ where: { tokenHash: hashToken(a.token) } });
+          if (change === 'expiry')
+            await db.session.update({
+              where: { tokenHash: hashToken(a.token) },
+              data: { expiresAt: new Date(0) },
+            });
+          if (change === 'auth')
+            await db.user.update({
+              where: { id: a.user.id },
+              data: { authVersion: { increment: 1 } },
+            });
+          if (change === 'membership')
+            await db.spaceMembership.deleteMany({ where: { spaceId: space.id } });
+          return credential;
+        },
+      );
+      try {
+        await purge(a, closed).expect(change === 'membership' ? 404 : 401);
+        assert.ok(await db.space.findUnique({ where: { id: space.id } }));
+      } finally {
+        hook.mock.restore();
+      }
+    }
+  });
+
+  it('手动删除沿用账号及IP密码限流，超限不清理数据', async () => {
+    const { a, space } = await fixture(false);
+    const closed = (await close(a, space).expect(201)).body;
+    await db.passwordChangeLimit.deleteMany();
+    for (let attempt = 0; attempt < 5; attempt++)
+      await a.agent
+        .post('/api/spaces/' + space.id + '/purge')
+        .send({ currentPassword: 'wrong-password', lifecycleVersion: closed.lifecycleVersion })
+        .expect(400);
+    await purge(a, closed).expect(429);
+    await db.passwordChangeLimit.deleteMany({ where: { key: 'user:' + a.user.id } });
+    await db.passwordChangeLimit.updateMany({
+      where: { key: { startsWith: 'ip:' } },
+      data: { count: 40 },
+    });
+    await purge(a, closed).expect(429);
+    assert.ok(await db.space.findUnique({ where: { id: space.id } }));
+  });
+
+  it('手动删除失败会回滚全部数据，用户可重新提交', async (context) => {
+    const { a, b, space } = await fixture();
+    const content = await contents(a, b, space.id);
+    const closed = (await close(a, space).expect(201)).body;
+    const pending = (await restore(a, closed).expect(201)).body.restoreRequest;
+    const original = db.atomic.bind(db);
+    const hook = context.mock.method(
+      Database.prototype,
+      'atomic',
+      (fn: Parameters<typeof db.atomic>[0]) =>
+        original((tx) =>
+          fn({
+            ...tx,
+            space: {
+              ...tx.space,
+              delete: () => {
+                throw new Error('purge failure');
+              },
+            },
+          } as typeof tx),
+        ),
+    );
+    try {
+      await assert.rejects(
+        app
+          .get(SpaceLifecycleService)
+          .purge(
+            a.user,
+            space.id,
+            { currentPassword: password, lifecycleVersion: closed.lifecycleVersion },
+            a.token,
+            'test',
+          ),
+        /purge failure/,
+      );
+    } finally {
+      hook.mock.restore();
+    }
+    assert.ok(await db.record.findUnique({ where: { id: content.draft.id } }));
+    assert.equal(await db.perspective.count({ where: { recordId: content.record.id } }), 2);
+    assert.ok(await db.reviewCycle.findUnique({ where: { id: content.cycle.id } }));
+    assert.equal(await db.spaceMembership.count({ where: { spaceId: space.id } }), 2);
+    assert.equal(
+      (await db.spaceRestoreRequest.findUniqueOrThrow({ where: { id: pending.id } })).status,
+      'pending',
+    );
+    await purge(a, closed).expect(201);
+  });
+
+  it('删除与恢复竞争只提交一个结果，双方同时删除只执行一次', async () => {
+    const { a, b, space } = await fixture();
+    const closed = (await close(a, space).expect(201)).body;
+    const pending = (await restore(a, closed).expect(201)).body.restoreRequest;
+    const outcomes = await Promise.all([purge(a, closed), respond(b, space.id, pending.id)]);
+    assert.equal(outcomes.filter((r) => r.status === 201).length, 1);
+    assert.ok(outcomes.every((r) => [201, 404, 409].includes(r.status)));
+    const remaining = await db.space.findUnique({ where: { id: space.id } });
+    assert.equal(remaining?.status ?? null, outcomes[1].status === 201 ? 'active' : null);
+    for (const member of [a, b])
+      assert.equal(
+        (await db.user.findUniqueOrThrow({ where: { id: member.user.id } })).spaceId,
+        remaining?.id ?? null,
+      );
+    const pair = await fixture();
+    const target = (await close(pair.a, pair.space).expect(201)).body;
+    const simultaneous = await Promise.all([purge(pair.a, target), purge(pair.b, target)]);
+    assert.deepEqual(simultaneous.map((r) => r.status).sort(), [201, 404]);
+    assert.equal(await db.space.findUnique({ where: { id: target.id } }), null);
+  });
+
+  it('手动删除与后台清理竞争不会重复删除或遗留子数据', async () => {
+    const { a, b, space } = await fixture();
+    const content = await contents(a, b, space.id);
+    const closed = (await close(a, space).expect(201)).body;
+    await db.space.update({ where: { id: space.id }, data: { purgeAt: new Date(0) } });
+    const [response] = await Promise.all([purge(a, closed), app.get(SpaceCleanupService).sweep()]);
+    assert.ok([201, 404].includes(response.status));
+    assert.equal(await db.space.findUnique({ where: { id: space.id } }), null);
+    assert.equal(await db.record.findUnique({ where: { id: content.record.id } }), null);
+    assert.equal(await db.spaceMembership.count({ where: { spaceId: space.id } }), 0);
+  });
+
   it('密码验证限流跨请求持久保留，超限不会关闭空间', async () => {
     const { a, space } = await fixture(false);
     for (let i = 0; i < 5; i++)
@@ -622,6 +873,66 @@ describe('空间关闭、限时恢复和到期清理', { concurrency: false }, (
       .set('Cookie', retained.b.cookie)
       .expect(200);
   });
+
+  it(
+    'PostgreSQL多实例手动删除与恢复、另一方删除及到期清理互斥',
+    { skip: !process.env.TEST_DATABASE_URL },
+    async () => {
+      const second = await createApp(true);
+      try {
+        for (const competing of ['restore', 'purge', 'cleanup']) {
+          const { a, b, space } = await fixture();
+          const content = await contents(a, b, space.id);
+          const closed = (await close(a, space).expect(201)).body;
+          const path = '/api/spaces/' + space.id;
+          if (competing === 'cleanup') {
+            await db.space.update({ where: { id: space.id }, data: { purgeAt: new Date(0) } });
+            const [deleted, count] = await Promise.all([
+              purge(a, closed),
+              second.get(SpaceCleanupService).sweep(),
+            ]);
+            assert.ok([201, 404].includes(deleted.status));
+            assert.equal(Number(deleted.status === 201) + count, 1);
+          } else {
+            const pending =
+              competing === 'restore'
+                ? (await restore(a, closed).expect(201)).body.restoreRequest
+                : null;
+            const otherPath = pending
+              ? path + '/restore-requests/' + pending.id + '/accept'
+              : path + '/purge';
+            const responses = await Promise.all([
+              purge(a, closed),
+              request(second.getHttpServer())
+                .post(otherPath)
+                .set('Cookie', b.cookie)
+                .send({
+                  currentPassword: password,
+                  ...(pending ? {} : { lifecycleVersion: closed.lifecycleVersion }),
+                }),
+            ]);
+            assert.equal(responses.filter((r) => r.status === 201).length, 1);
+            assert.ok(responses.every((r) => [201, 404, 409].includes(r.status)));
+            if (pending && responses[1].status === 201) {
+              assert.equal(
+                (await db.space.findUniqueOrThrow({ where: { id: space.id } })).status,
+                'active',
+              );
+              assert.ok(await db.record.findUnique({ where: { id: content.record.id } }));
+              assert.equal(await db.user.count({ where: { spaceId: space.id } }), 2);
+              continue;
+            }
+          }
+          assert.equal(await db.space.findUnique({ where: { id: space.id } }), null);
+          assert.equal(await db.record.findUnique({ where: { id: content.record.id } }), null);
+          assert.equal(await db.spaceMembership.count({ where: { spaceId: space.id } }), 0);
+          assert.equal(await db.user.count({ where: { spaceId: space.id } }), 0);
+        }
+      } finally {
+        await second.close();
+      }
+    },
+  );
 
   it(
     'PostgreSQL多实例确认仅恢复一次，清理竞争保持原子性',

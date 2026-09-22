@@ -14,7 +14,7 @@ x-api: &api
   environment: &api-env
     NODE_ENV: production
     DATABASE_URL: postgresql://littlenotes:${POSTGRES_PASSWORD:?请先执行 configure.sh}@db:5432/littlenotes?connection_limit=5&pool_timeout=15
-    WEB_ORIGIN: ${WEB_ORIGIN:-https://littlenotes.cn}
+    WEB_ORIGIN: ${WEB_ORIGIN:-https://web.littlenotes.cn}
     TRUST_PROXY_IP: 172.30.86.10
     AI_ENABLED: 'false'
     ICP_NUMBER: ${ICP_NUMBER:-}

@@ -8,9 +8,12 @@ const props = defineProps<{
   help: string;
   endpoint: string;
   lifecycleVersion?: number;
+  danger?: boolean;
+  confirmLabel?: string;
 }>();
-const emit = defineEmits<{ cancel: []; done: []; changed: [] }>();
+const emit = defineEmits<{ cancel: []; done: []; changed: [message: string] }>();
 const dialog = ref<HTMLDialogElement>();
+const cancelButton = ref<HTMLButtonElement>();
 const password = ref('');
 const busy = ref(false);
 const error = ref('');
@@ -32,12 +35,16 @@ async function submit() {
     emit('done');
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : '操作暂未完成，请稍后重试';
-    if (reason instanceof ApiError && [404, 409].includes(reason.status)) emit('changed');
+    if (reason instanceof ApiError && [404, 409].includes(reason.status))
+      emit('changed', error.value);
   } finally {
     busy.value = false;
   }
 }
-onMounted(() => dialog.value?.showModal());
+onMounted(() => {
+  dialog.value?.showModal();
+  if (props.danger) cancelButton.value?.focus();
+});
 onBeforeUnmount(() => {
   password.value = '';
   dialog.value?.close();
@@ -68,11 +75,17 @@ onBeforeUnmount(() => {
       <SecretField v-model="password" label="当前密码" current :disabled="busy" />
       <p v-if="error" class="notice warm" role="alert">{{ error }}</p>
       <div class="actions end">
-        <button type="button" class="btn secondary" :disabled="busy" @click="emit('cancel')">
+        <button
+          ref="cancelButton"
+          type="button"
+          class="btn secondary"
+          :disabled="busy"
+          @click="emit('cancel')"
+        >
           取消
         </button>
-        <button class="btn primary" :disabled="busy">
-          {{ busy ? '正在处理…' : '确认' + title }}
+        <button :class="['btn', danger ? 'danger' : 'primary']" :disabled="busy">
+          {{ busy ? '正在处理…' : confirmLabel || '确认' + title }}
         </button>
       </div>
     </form>

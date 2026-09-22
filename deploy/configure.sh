@@ -11,10 +11,10 @@ email_secret="$(openssl rand -hex 32)"
 set -o noclobber
 cat > .env <<EOF
 POSTGRES_PASSWORD=$password
-WEB_ORIGIN=https://littlenotes.cn
-DOMAIN=littlenotes.cn
+WEB_ORIGIN=https://web.littlenotes.cn
+DOMAIN=web.littlenotes.cn
 ACME_EMAIL=
-ICP_NUMBER=
+ICP_NUMBER=沪ICP备2026047310号
 SMTP_USER=
 SMTP_AUTH_CODE=
 EMAIL_HMAC_SECRET=$email_secret

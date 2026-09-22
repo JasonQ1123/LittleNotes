@@ -16,7 +16,7 @@ function syncSpace() {
 }
 function spaceUpdated(event: Event) {
   if ((event as CustomEvent).detail.closed) {
-    notify('共同空间已关闭，记录已隐藏，可在30天内申请恢复');
+    notify('共同空间已关闭，记录已隐藏，可在空间设置查看保留与恢复状态');
     if (route.path !== '/space') void router.replace('/space');
   } else {
     notify('共同空间状态已更新');

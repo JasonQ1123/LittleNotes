@@ -506,9 +506,9 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
       let production: INestApplication | undefined;
       try {
         process.env.NODE_ENV = 'production';
-        process.env.WEB_ORIGIN = 'http://littlenotes.cn';
+        process.env.WEB_ORIGIN = 'http://web.littlenotes.cn';
         await assert.rejects(() => createApp(true), /HTTPS/);
-        process.env.WEB_ORIGIN = 'https://littlenotes.cn';
+        process.env.WEB_ORIGIN = 'https://web.littlenotes.cn';
         process.env.TRUST_PROXY_IP = '127.0.0.1';
         process.env.ICP_NUMBER = '测试备案号12345678号-1';
         process.env.EMAIL_DELIVERY = 'smtp';
@@ -524,7 +524,7 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
         assert.equal(health.icpNumber, process.env.ICP_NUMBER);
         const login = await request(server)
           .post('/api/auth/login')
-          .set('Origin', 'https://littlenotes.cn')
+          .set('Origin', 'https://web.littlenotes.cn')
           .set('X-Forwarded-For', '203.0.113.10')
           .send({ username: 'person_0', password: 'paper-test-2026' })
           .expect(200);

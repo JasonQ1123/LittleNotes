@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { api, notify, useTask } from '../api';
 import { useSession } from '../store';
 import type { ClosedSpace, ClosedSpaceList } from '../types';
 import SpaceActionDialog from './SpaceActionDialog.vue';
+import ConfirmDialog from './ConfirmDialog.vue';
 import UserAvatar from './UserAvatar.vue';
 const session = useSession();
 const { busy, run } = useTask();
@@ -19,7 +20,59 @@ let disposed = false;
 const cards = computed(
   () => result.value?.items.filter((space) => Date.parse(space.purgeAt) > now.value) || [],
 );
-const action = ref<{ title: string; help: string; endpoint: string; lifecycleVersion?: number }>();
+const action = ref<{
+  title: string;
+  help: string;
+  endpoint: string;
+  lifecycleVersion?: number;
+  danger?: boolean;
+  confirmLabel?: string;
+  purgeId?: string;
+}>();
+const deleteWarning = ref<ClosedSpace>();
+const refreshButton = ref<HTMLButtonElement>();
+let deleteTrigger: HTMLElement | undefined;
+function startPurge(space: ClosedSpace, event: Event) {
+  deleteTrigger = event.currentTarget as HTMLElement;
+  deleteWarning.value = space;
+}
+async function confirmPurge() {
+  const space = deleteWarning.value;
+  if (!space) return;
+  deleteWarning.value = undefined;
+  // Close the first native modal before mounting the password confirmation.
+  await nextTick();
+  if (disposed) return;
+  action.value = {
+    title: '最后确认：删除后无法恢复',
+    help: `即将永久删除「${space.name}」。所有记录（包括双方的私密草稿、视角、约定和回访）将立即删除，双方都无法恢复。恢复申请也会失效。请输入当前密码，确认结束这个空间的保留期。`,
+    endpoint: '/spaces/' + space.id + '/purge',
+    lifecycleVersion: space.lifecycleVersion,
+    danger: true,
+    confirmLabel: '永久删除',
+    purgeId: space.id,
+  };
+}
+async function returnDeleteFocus(toTrigger = true) {
+  await nextTick();
+  if (disposed) return;
+  (toTrigger && deleteTrigger?.isConnected ? deleteTrigger : refreshButton.value)?.focus();
+  deleteTrigger = undefined;
+}
+function cancelAction() {
+  const deleting = !!deleteWarning.value || !!action.value?.purgeId;
+  deleteWarning.value = undefined;
+  action.value = undefined;
+  if (deleting) void returnDeleteFocus();
+}
+function changed(message: string) {
+  if (action.value?.purgeId) {
+    action.value = undefined;
+    notify(message, true);
+    void returnDeleteFocus(false);
+  }
+  void load();
+}
 const timestamp = (value: string) =>
   new Date(value).toLocaleString('zh-CN', {
     year: 'numeric',
@@ -65,7 +118,7 @@ function close() {
   if (!space) return;
   action.value = {
     title: space.members.length === 2 ? '解除绑定并关闭空间' : '关闭空间',
-    help: '关闭后，所有记录（包括自己的私密草稿）立即隐藏，邀请失效。记录保留30天，到期自动删除且无法恢复。期间双人空间需双方同意、单人空间由本人恢复，恢复时原成员均须没有当前空间。',
+    help: '关闭后，所有记录（包括自己的私密草稿）立即隐藏，邀请失效。记录最多保留30天，到期自动删除；任一原成员也可提前彻底删除，删除后无法恢复。保留期间双人空间需双方同意、单人空间由本人恢复，恢复时原成员均须没有当前空间。',
     endpoint: '/spaces/' + space.id + '/close',
     lifecycleVersion: space.lifecycleVersion,
   };
@@ -103,12 +156,29 @@ async function resolve(space: ClosedSpace, kind: 'cancel' | 'reject') {
 }
 async function completed() {
   const title = action.value?.title;
+  const purgeId = action.value?.purgeId;
+  if (purgeId) {
+    // Discard list responses started before deletion, including background refreshes.
+    sequence++;
+    if (result.value?.items.some((space) => space.id === purgeId)) {
+      result.value = {
+        ...result.value,
+        items: result.value.items.filter((space) => space.id !== purgeId),
+        total: Math.max(0, result.value.total - 1),
+      };
+    }
+  }
   action.value = undefined;
+  if (purgeId) {
+    notify('空间已永久删除，无法恢复');
+    await returnDeleteFocus(false);
+  }
   await run(async () => {
     await session.refresh(true);
     await load();
   });
-  notify(title === '申请恢复空间' ? '申请已提交，等待对方在期限内确认' : '空间操作已完成');
+  if (!purgeId)
+    notify(title === '申请恢复空间' ? '申请已提交，等待对方在期限内确认' : '空间操作已完成');
 }
 watch(
   [() => session.syncRevision, page],
@@ -134,9 +204,11 @@ onBeforeUnmount(() => {
   <section class="lifecycle-settings" aria-labelledby="closed-spaces-heading">
     <div class="section-heading">
       <h3 id="closed-spaces-heading">已关闭的空间</h3>
-      <button type="button" class="text-button" @click="load">刷新列表</button>
+      <button ref="refreshButton" type="button" class="text-button" @click="load">刷新列表</button>
     </div>
-    <p>记录在关闭后保留30天，期间不可查看；到期自动删除。恢复申请最长有效48小时。</p>
+    <p>
+      记录在关闭后最多保留30天，期间不可查看；到期自动删除。任一原成员也可提前彻底删除，双方都无法恢复。恢复申请最长有效48小时。
+    </p>
     <p v-if="error" class="notice warm" role="alert">{{ error }}</p>
     <p v-if="result && !cards.length">暂无保留期内的已关闭空间。</p>
     <article
@@ -197,6 +269,14 @@ onBeforeUnmount(() => {
         >
           {{ space.members.length === 1 ? '恢复空间' : '申请恢复' }}
         </button>
+        <button
+          type="button"
+          class="btn danger"
+          :disabled="busy"
+          @click="startPurge(space, $event)"
+        >
+          彻底删除
+        </button>
       </div>
     </article>
     <div v-if="result && (page > 1 || result.total > result.pageSize)" class="actions">
@@ -211,12 +291,26 @@ onBeforeUnmount(() => {
       </button>
     </div>
   </section>
+  <ConfirmDialog
+    v-if="deleteWarning"
+    :title="`彻底删除「${deleteWarning.name}」？`"
+    description="将立即删除这个空间的所有记录，包括双方的私密草稿、视角、约定和回访。不再保留到30天，双方都无法恢复。"
+    confirm-label="继续删除"
+    danger
+    @cancel="cancelAction"
+    @confirm="confirmPurge"
+  />
   <SpaceActionDialog
     v-if="action"
-    v-bind="action"
-    @cancel="action = undefined"
+    :title="action.title"
+    :help="action.help"
+    :endpoint="action.endpoint"
+    :lifecycle-version="action.lifecycleVersion"
+    :danger="action.danger"
+    :confirm-label="action.confirmLabel"
+    @cancel="cancelAction"
     @done="completed"
-    @changed="load"
+    @changed="changed"
   />
 </template>
 <style scoped>

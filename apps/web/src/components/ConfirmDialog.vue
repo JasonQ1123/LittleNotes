@@ -13,9 +13,11 @@ withDefaults(
 );
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 const dialog = ref<HTMLDialogElement>();
+const cancelButton = ref<HTMLButtonElement>();
 onMounted(async () => {
   await nextTick();
   dialog.value?.showModal();
+  cancelButton.value?.focus();
 });
 onBeforeUnmount(() => dialog.value?.close());
 </script>
@@ -24,6 +26,7 @@ onBeforeUnmount(() => dialog.value?.close());
     ref="dialog"
     class="dialog"
     aria-labelledby="dialog-title"
+    aria-describedby="dialog-description"
     @cancel.prevent="!busy && emit('cancel')"
   >
     <div class="dialog-head">
@@ -32,9 +35,10 @@ onBeforeUnmount(() => dialog.value?.close());
         <AppIcon name="close" />
       </button>
     </div>
-    <p>{{ description }}</p>
+    <p id="dialog-description" :class="{ 'danger-text': danger }">{{ description }}</p>
     <div class="actions end">
-      <button class="btn secondary" :disabled="busy" @click="emit('cancel')">再想想</button
+      <button ref="cancelButton" class="btn secondary" :disabled="busy" @click="emit('cancel')">
+        再想想</button
       ><button
         :class="['btn', danger ? 'danger' : 'primary']"
         :disabled="busy"
