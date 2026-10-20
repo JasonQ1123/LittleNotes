@@ -217,5 +217,8 @@ export class LinkDto {
   @ApiProperty() @IsString() @MaxLength(100) relatedId!: string;
 }
 export class StatisticsQueryDto {
-  @IsOptional() @Type(() => Number) @IsIn([30, 90, 365]) days: number = 90;
+  @IsOptional() @Type(() => Number) @IsIn([30, 90, 365]) days?: number = 90;
+  /** 自定义区间（含首尾的本地日期，Asia/Shanghai），与 days 二选一。 */
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
 }

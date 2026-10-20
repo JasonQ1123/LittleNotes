@@ -130,7 +130,8 @@ export interface Dashboard {
 }
 export interface Statistics {
   days: number;
-  bucket?: 'week' | 'month';
+  bucket?: 'day' | 'week' | 'month' | 'quarter';
+  range?: { from: string; to: string; days: number };
   total: number;
   archived: number;
   categories: { name: string; count: number }[];

@@ -1,4 +1,4 @@
-import { Controller, Get, Injectable, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Injectable, Query } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { Actor, CurrentUser } from './auth';
 import { Database } from './database';
@@ -80,24 +80,14 @@ export class DashboardService {
       recent: rows.slice(0, 4).map((r) => this.records.view(r, user)),
     };
   }
-  async statistics(user: Actor, days: number) {
+  async statistics(user: Actor, query: StatisticsQueryDto) {
     const all = await this.db.record.findMany({
       where: { ...this.records.scope(user), status: { not: 'draft' } },
       include: recordInclude,
       orderBy: { occurredAt: 'desc' },
     });
     const now = Date.now();
-    const since = now - days * 86400_000;
-    const rows = all.filter(
-      (r) => r.occurredAt.getTime() >= since && r.occurredAt.getTime() <= now,
-    );
-    const categories = CATEGORIES.map((name) => ({
-      name,
-      count: rows.filter((r) => r.category === name).length,
-    }));
-    // 30 天与 90 天按周分桶（周一为一周起点，最后一周截止到今天）；
-    // 一年跨度按周会有 52 根柱子，仍按自然月分桶。
-    const bucket: 'week' | 'month' = days <= 120 ? 'week' : 'month';
+    const dayMs = 86400_000;
     const dayParts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Shanghai',
       year: 'numeric',
@@ -109,48 +99,125 @@ export class DashboardService {
       const pick = (type: string) => Number(parts.find((p) => p.type === type)!.value);
       return Date.UTC(pick('year'), pick('month') - 1, pick('day'));
     };
+    const isoDay = (day: number) => new Date(day).toISOString().slice(0, 10);
     const mondayOf = (day: number) => {
       const weekday = new Date(day).getUTCDay(); // 0 = 周日
-      return day - ((weekday + 6) % 7) * 86400_000;
+      return day - ((weekday + 6) % 7) * dayMs;
     };
     const shortDate = (day: number) => {
       const date = new Date(day);
-      return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`;
+      return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
     };
+
+    // 自定义区间按本地日切（Asia/Shanghai 固定 UTC+8），预设区间沿用「今天往回数」。
+    let since: number;
+    let until: number;
+    let spanDays: number;
+    let bucket: 'day' | 'week' | 'month' | 'quarter';
+    if (query.from || query.to) {
+      if (!query.from || !query.to)
+        throw new BadRequestException('自定义统计需要同时提供开始与结束日期');
+      const startDay = localDay(new Date(`${query.from}T00:00:00+08:00`));
+      const endDay = localDay(new Date(`${query.to}T00:00:00+08:00`));
+      if (!Number.isFinite(startDay) || !Number.isFinite(endDay))
+        throw new BadRequestException('日期格式应为 YYYY-MM-DD');
+      if (startDay > endDay) throw new BadRequestException('开始日期不能晚于结束日期');
+      spanDays = Math.round((endDay - startDay) / dayMs) + 1;
+      if (spanDays > 3650) throw new BadRequestException('统计范围最多 10 年');
+      since = startDay - 8 * 3_600_000;
+      until = endDay + dayMs - 1 - 8 * 3_600_000;
+      // 跨度越长，柱子越粗：天 → 周 → 月 → 季度，避免几千根柱子。
+      bucket =
+        spanDays <= 14 ? 'day' : spanDays <= 120 ? 'week' : spanDays <= 730 ? 'month' : 'quarter';
+    } else {
+      const days = query.days ?? 90;
+      spanDays = days;
+      since = now - days * dayMs;
+      until = now;
+      bucket = days <= 120 ? 'week' : 'month';
+    }
+
+    const rows = all.filter(
+      (r) => r.occurredAt.getTime() >= since && r.occurredAt.getTime() <= until,
+    );
+    const categories = CATEGORIES.map((name) => ({
+      name,
+      count: rows.filter((r) => r.category === name).length,
+    }));
+
+    const startDay = localDay(new Date(since));
+    const endDay = localDay(new Date(until));
+    const monthKey = (day: number) => {
+      const date = new Date(day);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    };
+    const shortMonth = (key: string) => `${key.slice(2, 4)}/${key.slice(5, 7)}`;
+    const quarterOf = (day: number) => {
+      const date = new Date(day);
+      return `${String(date.getUTCFullYear()).slice(2)} Q${Math.floor(date.getUTCMonth() / 3) + 1}`;
+    };
+
     let trend: { label: string; count: number }[];
-    if (bucket === 'week') {
-      const firstWeek = mondayOf(localDay(new Date(since)));
-      const lastWeek = mondayOf(localDay(new Date(now)));
-      const weeks = Math.floor((lastWeek - firstWeek) / (7 * 86400_000)) + 1;
-      trend = Array.from({ length: weeks }, (_, index) => ({
-        label: shortDate(firstWeek + index * 7 * 86400_000),
+    if (bucket === 'day') {
+      const days = Math.round((endDay - startDay) / dayMs) + 1;
+      trend = Array.from({ length: days }, (_, index) => ({
+        label: shortDate(startDay + index * dayMs),
         count: 0,
       }));
       for (const record of rows) {
-        const index = Math.floor(
-          (mondayOf(localDay(record.occurredAt)) - firstWeek) / (7 * 86400_000),
-        );
+        const index = Math.round((localDay(record.occurredAt) - startDay) / dayMs);
+        if (index >= 0 && index < days) trend[index].count++;
+      }
+    } else if (bucket === 'week') {
+      const firstWeek = mondayOf(startDay);
+      const lastWeek = mondayOf(endDay);
+      const weeks = Math.floor((lastWeek - firstWeek) / (7 * dayMs)) + 1;
+      trend = Array.from({ length: weeks }, (_, index) => ({
+        label: shortDate(firstWeek + index * 7 * dayMs),
+        count: 0,
+      }));
+      for (const record of rows) {
+        const index = Math.floor((mondayOf(localDay(record.occurredAt)) - firstWeek) / (7 * dayMs));
         if (index >= 0 && index < weeks) trend[index].count++;
       }
+    } else if (bucket === 'month') {
+      const months: string[] = [];
+      const cursor = new Date(startDay);
+      let year = cursor.getUTCFullYear();
+      let month = cursor.getUTCMonth();
+      while (Date.UTC(year, month, 1) <= endDay) {
+        months.push(`${year}-${String(month + 1).padStart(2, '0')}`);
+        month += 1;
+        if (month > 11) {
+          month = 0;
+          year += 1;
+        }
+      }
+      const counts = new Map(months.map((key) => [key, 0]));
+      for (const record of rows) {
+        const key = monthKey(localDay(record.occurredAt));
+        if (counts.has(key)) counts.set(key, counts.get(key)! + 1);
+      }
+      trend = months.map((key) => ({ label: shortMonth(key), count: counts.get(key)! }));
     } else {
-      const monthFormatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-      });
-      const monthKey = (date: Date) => {
-        const parts = monthFormatter.formatToParts(date);
-        return `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}`;
-      };
-      const [startYear, startMonth] = monthKey(new Date(since)).split('-').map(Number);
-      const [endYear, endMonth] = monthKey(new Date(now)).split('-').map(Number);
-      const months = (endYear - startYear) * 12 + endMonth - startMonth + 1;
-      trend = Array.from({ length: months }, (_, index) => {
-        const label = new Date(Date.UTC(startYear, startMonth - 1 + index, 1))
-          .toISOString()
-          .slice(0, 7);
-        return { label, count: rows.filter((r) => monthKey(r.occurredAt) === label).length };
-      });
+      const quarters: string[] = [];
+      const cursor = new Date(startDay);
+      let year = cursor.getUTCFullYear();
+      let quarter = Math.floor(cursor.getUTCMonth() / 3);
+      while (Date.UTC(year, quarter * 3, 1) <= endDay) {
+        quarters.push(`${String(year).slice(2)} Q${quarter + 1}`);
+        quarter += 1;
+        if (quarter > 3) {
+          quarter = 0;
+          year += 1;
+        }
+      }
+      const counts = new Map(quarters.map((key) => [key, 0]));
+      for (const record of rows) {
+        const key = quarterOf(localDay(record.occurredAt));
+        if (counts.has(key)) counts.set(key, counts.get(key)! + 1);
+      }
+      trend = quarters.map((key) => ({ label: key, count: counts.get(key)! }));
     }
     const members = user.spaceId
       ? await this.db.user.findMany({
@@ -160,7 +227,7 @@ export class DashboardService {
       : [];
     const reviews = all
       .flatMap((r) => r.agreements.flatMap((a) => a.cycles.flatMap((c) => c.reviews)))
-      .filter((r) => r.updatedAt.getTime() >= since);
+      .filter((r) => r.updatedAt.getTime() >= since && r.updatedAt.getTime() <= until);
     const ratings = members.map((member) => ({
       ...member,
       total: reviews.filter((r) => r.userId === member.id).length,
@@ -188,7 +255,7 @@ export class DashboardService {
       .filter(
         (group) =>
           group.length > 1 &&
-          group.some((r) => r.occurredAt.getTime() >= since && r.occurredAt.getTime() <= now),
+          group.some((r) => r.occurredAt.getTime() >= since && r.occurredAt.getTime() <= until),
       )
       .map((group) => ({
         title: group[0].title,
@@ -197,8 +264,9 @@ export class DashboardService {
       }))
       .sort((a, b) => b.count - a.count);
     return {
-      days,
+      days: spanDays,
       bucket,
+      range: { from: isoDay(startDay), to: isoDay(endDay), days: spanDays },
       total: rows.length,
       archived: rows.filter((r) => r.status === 'archived').length,
       categories,
@@ -218,6 +286,6 @@ export class DashboardController {
     return this.service.home(user);
   }
   @Get('statistics') statistics(@CurrentUser() user: Actor, @Query() query: StatisticsQueryDto) {
-    return this.service.statistics(user, query.days);
+    return this.service.statistics(user, query);
   }
 }

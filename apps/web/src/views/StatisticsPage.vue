@@ -7,11 +7,46 @@ import EmptyState from '../components/EmptyState.vue';
 import ErrorState from '../components/ErrorState.vue';
 import LoadingState from '../components/LoadingState.vue';
 const data = ref<Statistics>();
-const days = ref(90);
+/** 预设区间（30/90/365 天）或自定义区间，二者互斥。 */
+const mode = ref('90');
+const customFrom = ref('');
+const customTo = ref('');
 const loading = ref(true);
 const error = ref('');
 let request = 0;
+function isoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function fillCustomRange() {
+  const end = new Date();
+  const start = new Date(Date.now() - 89 * 86_400_000);
+  customFrom.value = isoDate(start);
+  customTo.value = isoDate(end);
+}
+function queryString() {
+  if (mode.value === 'custom') return `from=${customFrom.value}&to=${customTo.value}`;
+  return `days=${mode.value}`;
+}
+function changeMode() {
+  if (mode.value === 'custom') fillCustomRange();
+  else void load();
+}
+const bucketLabel = computed(
+  () =>
+    ({ day: '按天', week: '按周', month: '按月', quarter: '按季度' })[data.value?.bucket || 'week'],
+);
+const rangeCaption = computed(() => {
+  const range = data.value?.range;
+  if (!range) return '';
+  return `${range.from} 至 ${range.to} · 共 ${range.days} 天 · ${bucketLabel.value}统计`;
+});
 const maxTrend = computed(() => Math.max(1, ...(data.value?.trend.map((t) => t.count) || [])));
+/** 标签密度跟着分桶走：季度桶柱子多、标签长，隔几根标一次才不叠在一起。 */
+const labelStep = computed(() => {
+  const length = data.value?.trend.length || 0;
+  const cap = data.value?.bucket === 'quarter' ? 12 : data.value?.bucket === 'month' ? 13 : 16;
+  return Math.max(1, Math.ceil(length / cap));
+});
 const sortedCategories = computed(() =>
   [...(data.value?.categories || [])].sort((a, b) => b.count - a.count),
 );
@@ -26,21 +61,11 @@ const insight = computed(() => {
   const d = data.value;
   if (!d || !d.total) return '';
   const top = sortedCategories.value.find((item) => item.count > 0);
-  return `最近 ${d.days} 天，你们一起留下 ${d.total} 张纸条${top ? `，聊得最多的是「${top.name}」` : ''}。`;
+  return `${d.days} 天里，你们一起留下 ${d.total} 张纸条${top ? `，聊得最多的是「${top.name}」` : ''}。`;
 });
-/** 两种范围的横轴单位不同，文案要跟着变。 */
-const trendUnit = computed(() =>
-  data.value?.bucket === 'month' ? '按自然月统计' : '每周一为一周起点，本周截止今天',
-);
 function categoryPercent(count: number) {
   const total = data.value?.total || 0;
   return total ? Math.round((count / total) * 100) : 0;
-}
-/** 横轴标签要短：周桶去掉月前导零，月桶只留月份。 */
-function axisLabel(label: string) {
-  if (data.value?.bucket === 'month') return `${label.slice(5)}月`;
-  const [month, day] = label.split('/');
-  return `${Number(month)}/${day}`;
 }
 /** 把「每个成员的评分分布」转成「每个评分维度下两个人的数量」，便于横向对比。 */
 const ratingRows = computed(() => {
@@ -63,7 +88,7 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const result = await api<Statistics>(`/dashboard/statistics?days=${days.value}`);
+    const result = await api<Statistics>(`/dashboard/statistics?${queryString()}`);
     if (current === request) data.value = result;
   } catch (e) {
     if (current === request) error.value = (e as Error).message;
@@ -80,16 +105,24 @@ onMounted(load);
       <h1>一起回顾</h1>
       <p>看看我们走过的路，找到下一步可以一起努力的方向。</p>
     </div>
-    <select v-model="days" aria-label="统计时间范围" @change="load">
-      <option :value="30">最近 30 天</option>
-      <option :value="90">最近 90 天</option>
-      <option :value="365">最近一年</option>
+    <select v-model="mode" aria-label="统计时间范围" @change="changeMode">
+      <option value="30">最近 30 天</option>
+      <option value="90">最近 90 天</option>
+      <option value="365">最近一年</option>
+      <option value="custom">自定义区间…</option>
     </select>
+  </div>
+  <div v-if="mode === 'custom'" class="range-picker">
+    <input v-model="customFrom" type="date" aria-label="开始日期" />
+    <span class="range-sep">至</span>
+    <input v-model="customTo" type="date" aria-label="结束日期" />
+    <button class="btn secondary" :disabled="loading" @click="load">应用</button>
   </div>
   <LoadingState v-if="loading" text="正在回顾我们走过的路…" />
   <ErrorState v-else-if="error" :message="error" @retry="load" />
   <template v-else-if="data"
-    ><p v-if="insight" class="insight">{{ insight }}</p>
+    ><p v-if="rangeCaption" class="range-caption">{{ rangeCaption }}</p>
+    <p v-if="insight" class="insight">{{ insight }}</p>
     <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-icon sage-bg"><AppIcon name="note" /></div>
@@ -114,7 +147,7 @@ onMounted(load);
     <div class="analytics-grid">
       <section class="panel content-panel">
         <h2>记录的足迹</h2>
-        <p class="section-description">按发生时间统计的共享纸条数量，{{ trendUnit }}</p>
+        <p class="section-description">按发生时间统计的共享纸条数量</p>
         <div
           v-if="data.total"
           class="bar-chart"
@@ -122,7 +155,7 @@ onMounted(load);
           tabindex="0"
           :aria-label="data.trend.map((t) => `${t.label}：${t.count}张`).join('，')"
         >
-          <div v-for="item in data.trend" :key="item.label" class="chart-column">
+          <div v-for="(item, index) in data.trend" :key="item.label" class="chart-column">
             <div class="chart-track">
               <div
                 v-if="item.count"
@@ -132,20 +165,21 @@ onMounted(load);
                 <span class="chart-value">{{ item.count }}</span>
               </div>
             </div>
-            <small>{{ axisLabel(item.label) }}</small>
+            <small>{{ index % labelStep === 0 ? item.label : '' }}</small>
           </div>
         </div>
         <EmptyState
           v-else
           icon="chart"
-          title="这里会留下我们走过的足迹"
-          description="有了共享记录后，就可以看到这段时间的变化。"
+          title="这段时间还没有足迹"
+          description="换一个时间范围，或者等下一次记录之后再回来看看。"
         />
       </section>
       <section class="panel content-panel">
         <h2>我们常聊到的事</h2>
         <p class="section-description">按主要分类汇总，每张纸条计入一个分类</p>
-        <div class="category-bars">
+        <p v-if="!data.total" class="form-hint">这段时间还没有共享纸条。</p>
+        <div v-else class="category-bars">
           <div
             v-for="item in visibleCategories"
             :key="item.name"
