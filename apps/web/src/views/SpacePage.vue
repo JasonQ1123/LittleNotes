@@ -149,7 +149,7 @@ async function logout() {
       <section class="panel settings-card">
         <h2>账号安全</h2>
         <p class="security-email">找回邮箱：{{ session.user?.maskedEmail }}</p>
-        <RouterLink to="/account/email" class="btn secondary full">更换邮箱</RouterLink>
+        <RouterLink to="/account/email" class="btn quiet full">更换邮箱</RouterLink>
         <button type="button" class="btn secondary full" @click="changingPassword = true">
           <AppIcon name="lock" :size="17" />修改密码
         </button>
@@ -181,7 +181,7 @@ async function logout() {
 }
 .space-privacy-note p {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.85;
 }
 .space-privacy-note strong {

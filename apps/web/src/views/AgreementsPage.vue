@@ -4,6 +4,8 @@ import { api } from '../api';
 import { dateLabel, type Note } from '../types';
 import AppIcon from '../components/AppIcon.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ErrorState from '../components/ErrorState.vue';
+import LoadingState from '../components/LoadingState.vue';
 const notes = ref<Note[]>([]);
 const loading = ref(true);
 const error = ref('');
@@ -40,12 +42,8 @@ onMounted(load);
       :size="20"
     />这里收好双方确认过、仍在跟进的约定。过去的版本和归档约定，可以在对应纸条中查看。
   </div>
-  <div v-if="loading" class="loading-state" role="status">
-    <span class="spinner"></span>正在整理我们的约定…
-  </div>
-  <div v-else-if="error" class="notice error-notice" role="alert">
-    {{ error }}<button class="text-button" @click="load">重新加载</button>
-  </div>
+  <LoadingState v-if="loading" text="正在整理我们的约定…" />
+  <ErrorState v-else-if="error" :message="error" @retry="load" />
   <div v-else-if="notes.length" class="agreement-list">
     <article v-for="note in notes" :key="note.id" class="panel agreement-sheet">
       <template

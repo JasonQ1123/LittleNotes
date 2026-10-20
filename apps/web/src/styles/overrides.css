@@ -356,7 +356,6 @@ a {
   background: transparent;
   border-color: transparent;
   color: var(--muted);
-  justify-content: flex-start;
 }
 .btn.quiet:hover:not(:disabled) {
   background: var(--stone-100);

@@ -5,6 +5,8 @@ import { useSession } from '../store';
 import { categories, statusLabels, type NoteList } from '../types';
 import AppIcon from '../components/AppIcon.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ErrorState from '../components/ErrorState.vue';
+import LoadingState from '../components/LoadingState.vue';
 import RecordCard from '../components/RecordCard.vue';
 const session = useSession();
 const data = ref<NoteList>();
@@ -87,12 +89,8 @@ onMounted(() => load());
       清除筛选
     </button>
   </div>
-  <div v-if="error" class="notice error-notice" role="alert">
-    {{ error }}<button class="text-button" @click="load()">重新加载</button>
-  </div>
-  <div v-else-if="loading" class="loading-state" role="status">
-    <span class="spinner"></span>正在找出这些小纸条…
-  </div>
+  <ErrorState v-if="error" :message="error" @retry="load()" />
+  <LoadingState v-else-if="loading" text="正在找出这些小纸条…" />
   <div v-else-if="data?.items.length" class="record-grid">
     <RecordCard v-for="note in data.items" :key="note.id" :note="note" />
   </div>

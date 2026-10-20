@@ -7,6 +7,8 @@ import { categories, dateLabel, inputDate, statusLabels, type Note, type NoteLis
 import AppIcon from '../components/AppIcon.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import ErrorState from '../components/ErrorState.vue';
+import LoadingState from '../components/LoadingState.vue';
 import PerspectivePanel from '../components/PerspectivePanel.vue';
 import AgreementPanel from '../components/AgreementPanel.vue';
 import ReviewPanel from '../components/ReviewPanel.vue';
@@ -51,8 +53,7 @@ const nextStep = computed(() => {
     !cycle.reviews.some((r) => r.userId === session.user?.id)
   )
     return { label: '填写这次回访', hint: '约好的回访到期了，看看有没有变化。', tab: 'reviews' };
-  if (!myArchiveVote.value)
-    return { label: '看看要不要结束跟进', hint: '想翻篇的时候，两个人一起结束。', tab: 'reviews' };
+  // 结束跟进不再进行动条：它是收尾动作，交给页尾的轻量按钮，避免同屏两个同义入口。
   return null;
 });
 const story = reactive({
@@ -75,6 +76,19 @@ watch(
 );
 function setTab(value: string) {
   router.replace({ query: { ...route.query, tab: value } });
+}
+/** Roving tabindex: ←/→ 循环切换，Home/End 跳到首尾，焦点跟随选中项。 */
+function onTabKey(event: KeyboardEvent, index: number) {
+  if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  let next = index;
+  if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+  if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+  if (event.key === 'Home') next = 0;
+  if (event.key === 'End') next = tabs.length - 1;
+  setTab(tabs[next].id);
+  const buttons = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll('button');
+  buttons?.[next]?.focus();
 }
 async function load() {
   loading.value = true;
@@ -190,15 +204,8 @@ onMounted(load);
   <RouterLink to="/records" class="back-link"
     ><AppIcon name="left" :size="17" />回到所有纸条</RouterLink
   >
-  <div v-if="loading" class="loading-state" role="status">
-    <span class="spinner"></span>正在展开这张纸条…
-  </div>
-  <div v-else-if="error" class="panel error-panel" role="alert">
-    <AppIcon name="lock" :size="28" />
-    <h2>暂时无法打开这张纸条</h2>
-    <p>{{ error }}</p>
-    <button class="btn secondary" @click="load">重新加载</button>
-  </div>
+  <LoadingState v-if="loading" text="正在展开这张纸条…" />
+  <ErrorState v-else-if="error" title="暂时无法打开这张纸条" :message="error" @retry="load" />
   <template v-else-if="note">
     <div class="detail-heading">
       <div class="detail-badges">
@@ -251,13 +258,15 @@ onMounted(load);
     </div>
     <div class="detail-tabs" role="tablist" aria-label="复盘内容">
       <button
-        v-for="item in tabs"
+        v-for="(item, index) in tabs"
         :key="item.id"
         role="tab"
         :aria-selected="tab === item.id"
         :aria-controls="`panel-${item.id}`"
+        :tabindex="tab === item.id ? 0 : -1"
         :class="{ active: tab === item.id }"
         @click="setTab(item.id)"
+        @keydown="onTabKey($event, index)"
       >
         <AppIcon :name="item.icon" :size="18" />{{ item.label
         }}<span
@@ -413,7 +422,7 @@ onMounted(load);
             <h3>准备好，把这一页轻轻翻过去了吗？</h3>
             <p>双方确认结束跟进后归档，记录和回访会一直保留。</p>
           </div>
-          <button class="btn secondary small" :disabled="busy || myArchiveVote" @click="archive">
+          <button class="btn quiet small" :disabled="busy || myArchiveVote" @click="archive">
             <AppIcon name="archive" :size="16" />{{
               myArchiveVote ? '已确认，等对方同意' : '我同意结束跟进'
             }}
