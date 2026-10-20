@@ -184,6 +184,7 @@ strong {
 .required {
   color: #bd846b;
   font-size: 13px;
+  margin-left: 2px;
 }
 .danger-text {
   color: #b76962 !important;
@@ -385,7 +386,7 @@ strong {
   color: #728368;
   background: #eff3e9;
   border: 1px solid #e4ebdc;
-  border-radius: 9px;
+  border-radius: 12px;
   padding: 13px 16px;
   line-height: 1.8;
   margin-bottom: 21px;
@@ -1262,10 +1263,10 @@ strong {
   font-size: 12px;
   color: #99a18e;
 }
+/* Labels are text nodes next to inline badges, so the wrapper stays block-level:
+   a column flex container would push "*" and "选填" onto their own lines. */
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: block;
   color: #68745f;
   font-size: 12px;
   margin-bottom: 21px;
@@ -1273,8 +1274,15 @@ strong {
 .field > input,
 .field > select,
 .field > textarea {
+  display: block;
+  margin-top: 8px;
   font-size: 13px;
   font-weight: 400;
+}
+.field > small,
+.field > .password-input,
+.field > .action-editor {
+  margin-top: 8px;
 }
 .field small,
 .form-hint {
@@ -1287,6 +1295,7 @@ strong {
   font-size: 10px;
   color: #a9b09e;
   font-weight: 400;
+  margin-left: 4px;
 }
 .large-label {
   font-size: 14px;
@@ -1440,7 +1449,7 @@ strong {
 .story-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  min-height: 150px;
+  min-height: 0;
   font-size: 14px;
   line-height: 2.2;
   padding-top: 8px;
@@ -1881,14 +1890,20 @@ strong {
   height: 154px;
   width: 100%;
   max-width: 44px;
-  border-radius: 7px 7px 0 0;
-  background: #f6f8f0;
+  border-radius: 0;
+  /* No full-height track: a pale column reads as a full bar and makes 0 look like the maximum.
+     The dashed baseline is a background layer so a real bar paints over it. */
+  background-color: transparent;
+  background-image: repeating-linear-gradient(90deg, #e3d2be 0 6px, transparent 6px 12px);
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 100% 1px;
   display: flex;
   align-items: flex-end;
 }
 .chart-track > div {
   width: 100%;
-  min-height: 1px;
+  min-height: 3px;
   border-radius: 6px 6px 0 0;
   background: #a7b89b;
   transition: height 0.3s;

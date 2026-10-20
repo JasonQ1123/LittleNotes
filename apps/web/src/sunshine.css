@@ -78,11 +78,28 @@
 .gentle-card,
 .gentle-inline,
 .draft-banner,
-.pair-banner,
-.space-cover {
+.pair-banner {
   background: var(--soft-yellow);
   border-color: #efdbba;
   color: var(--ink);
+}
+/* The space cover is a banner, not a notice: give it depth and the title face
+   instead of a flat block inside a rounded card. */
+.space-cover {
+  background: var(--sunlight);
+  border: 1px solid #f0dcc0;
+  border-radius: 16px;
+  padding: 26px 20px 24px;
+  margin-bottom: 22px;
+}
+.space-cover h3 {
+  font-family: var(--title-font);
+  font-size: 21px;
+  letter-spacing: 0.02em;
+  margin: 18px 0 8px;
+}
+.space-cover p {
+  color: var(--muted);
 }
 .notice.error-notice,
 .toast-message.error {
@@ -541,16 +558,24 @@ input[type='range'] {
 .stat-card {
   box-shadow: var(--shadow);
 }
-.chart-track,
 .category-bar > div,
 .rating-dots > span {
   background: #f6ecdf;
 }
 .chart-track > div {
+  background: linear-gradient(180deg, #f0bd9c 0%, var(--chart-peach) 100%);
+}
+.category-bar i {
   background: var(--chart-peach);
 }
 .rating-dots > span.filled {
   background: var(--chart-sage);
+}
+.rating-extra {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: 2px;
 }
 
 /* The home page gives the letter space to breathe and keeps counts in one quiet row. */
