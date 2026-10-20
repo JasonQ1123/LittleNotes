@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useSession } from './store';
 import { api, toast, notify } from './api';
 import AppIcon from './components/AppIcon.vue';
+import BrandMark from './components/BrandMark.vue';
 import UserAvatar from './components/UserAvatar.vue';
 const session = useSession();
 const route = useRoute();
@@ -80,8 +81,7 @@ onBeforeUnmount(() => {
   <div v-else class="app-layout">
     <aside class="sidebar">
       <RouterLink to="/" class="brand"
-        ><span class="brand-mark"><AppIcon name="note" :size="26" /></span
-        ><span>小纸条<small>把彼此放在心上</small></span></RouterLink
+        ><BrandMark /><span>小纸条<small>把彼此放在心上</small></span></RouterLink
       >
       <div class="sidebar-label">两个人的日常</div>
       <nav aria-label="主要导航">

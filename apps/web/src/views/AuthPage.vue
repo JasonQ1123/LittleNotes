@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '../components/AppIcon.vue';
+import BrandMark from '../components/BrandMark.vue';
 import { api, useTask } from '../api';
 import { useSession } from '../store';
 import { isNewPasswordValid, NEW_PASSWORD_HINT, NEW_PASSWORD_PATTERN } from '../password';
@@ -42,8 +43,7 @@ async function submit() {
   <main id="main-content" class="auth-page">
     <section class="auth-story">
       <div class="brand">
-        <span class="brand-mark"><AppIcon name="note" :size="26" /></span
-        ><span>小纸条<small>把彼此放在心上</small></span>
+        <BrandMark /><span>小纸条<small>把彼此放在心上</small></span>
       </div>
       <div class="auth-story-body">
         <span class="eyebrow">FOR THE TWO OF US</span>
