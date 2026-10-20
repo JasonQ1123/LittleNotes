@@ -436,6 +436,34 @@ describe('小纸条：跨账号、跨空间与完整复盘流程', { concurrency
       stats.total,
     );
   });
+  it('自定义区间按跨度选择分桶，桶计数与总数一致', async () => {
+    const iso = (offset: number) =>
+      new Date(Date.now() + offset * 86400_000).toISOString().slice(0, 10);
+    const cases = [
+      { from: iso(-6), to: iso(0), bucket: 'day' },
+      { from: iso(-60), to: iso(0), bucket: 'week' },
+      { from: iso(-400), to: iso(0), bucket: 'month' },
+      { from: iso(-2000), to: iso(0), bucket: 'quarter' },
+    ];
+    for (const item of cases) {
+      const result = (
+        await c.get(`/api/dashboard/statistics?from=${item.from}&to=${item.to}`).expect(200)
+      ).body;
+      assert.equal(result.bucket, item.bucket, `${item.from}..${item.to}`);
+      assert.equal(result.range.from, item.from);
+      assert.equal(result.range.to, item.to);
+      assert.equal(
+        result.trend.reduce((sum: number, bucket: any) => sum + bucket.count, 0),
+        result.total,
+      );
+      assert.equal(
+        new Set(result.trend.map((bucket: any) => bucket.label)).size,
+        result.trend.length,
+      );
+    }
+    await c.get('/api/dashboard/statistics?from=2025-01-02&to=2025-01-01').expect(400);
+    await c.get('/api/dashboard/statistics?from=2025-01-01').expect(400);
+  });
   it(
     'PostgreSQL 的独立服务实例共同确认时，仅产生一份有效约定和一轮回访',
     { skip: !process.env.TEST_DATABASE_URL },
