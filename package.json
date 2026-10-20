@@ -6,6 +6,8 @@
     "dev": "concurrently -k -n api,web -c green,magenta \"pnpm --filter @paper/api dev\" \"pnpm --filter @paper/web dev\"",
     "setup": "node scripts/init-env.mjs && pnpm --filter @paper/api db:generate && pnpm --filter @paper/api db:migrate",
     "build": "pnpm --filter @paper/api build && pnpm --filter @paper/web build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "pnpm --filter @paper/api test",
     "test:postgres": "node scripts/test-postgres.mjs",
     "test:backup": "node scripts/test-avatar-backup.mjs",
