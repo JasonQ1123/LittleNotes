@@ -12,8 +12,6 @@ const loading = ref(true);
 const error = ref('');
 let request = 0;
 const maxTrend = computed(() => Math.max(1, ...(data.value?.trend.map((t) => t.count) || [])));
-/** 周分桶会有 13–14 列，标签隔一个显示才不互相压住。 */
-const labelStep = computed(() => ((data.value?.trend.length || 0) > 8 ? 2 : 1));
 const sortedCategories = computed(() =>
   [...(data.value?.categories || [])].sort((a, b) => b.count - a.count),
 );
@@ -37,6 +35,12 @@ const trendUnit = computed(() =>
 function categoryPercent(count: number) {
   const total = data.value?.total || 0;
   return total ? Math.round((count / total) * 100) : 0;
+}
+/** 横轴标签要短：周桶去掉月前导零，月桶只留月份。 */
+function axisLabel(label: string) {
+  if (data.value?.bucket === 'month') return `${label.slice(5)}月`;
+  const [month, day] = label.split('/');
+  return `${Number(month)}/${day}`;
 }
 /** 把「每个成员的评分分布」转成「每个评分维度下两个人的数量」，便于横向对比。 */
 const ratingRows = computed(() => {
@@ -115,22 +119,17 @@ onMounted(load);
           v-if="data.total"
           class="bar-chart"
           role="img"
+          tabindex="0"
           :aria-label="data.trend.map((t) => `${t.label}：${t.count}张`).join('，')"
         >
-          <div v-for="(item, index) in data.trend" :key="item.label" class="chart-column">
+          <div v-for="item in data.trend" :key="item.label" class="chart-column">
             <span :class="['chart-value', { 'is-zero': item.count === 0 }]">{{
               item.count || ''
             }}</span>
             <div class="chart-track">
               <div v-if="item.count" :style="{ height: `${(item.count / maxTrend) * 100}%` }"></div>
             </div>
-            <small>{{
-              index % labelStep === 0
-                ? data.bucket === 'month'
-                  ? `${item.label.slice(5)}月`
-                  : item.label
-                : ''
-            }}</small>
+            <small>{{ axisLabel(item.label) }}</small>
           </div>
         </div>
         <EmptyState
@@ -153,12 +152,7 @@ onMounted(load);
             <div>
               <i :style="{ width: `${categoryPercent(item.count)}%` }"></i>
             </div>
-            <strong
-              >{{ item.count
-              }}<em v-if="item.count" class="category-percent"
-                >{{ categoryPercent(item.count) }}%</em
-              ></strong
-            >
+            <strong>{{ item.count }} 张</strong>
           </div>
           <button
             v-if="hiddenCategories"
@@ -176,8 +170,9 @@ onMounted(load);
         汇总这段时间内提交或更新的回访，每人每轮计一次，保留彼此的不同感受。
       </p>
       <div class="panel content-panel rating-compare">
-        <div class="rating-legend">
-          <span v-for="(member, index) in data.ratings" :key="member.id">
+        <div class="rating-head">
+          <span class="rating-head-label">评分维度</span>
+          <span v-for="(member, index) in data.ratings" :key="member.id" class="rating-head-member">
             <i :class="`legend-${index}`"></i>{{ member.nickname }}
             <small>{{ member.total }} 次</small>
           </span>
@@ -188,14 +183,14 @@ onMounted(load);
           :class="['rating-compare-row', { 'is-zero': row.total === 0 }]"
         >
           <span class="rating-compare-label">{{ row.name }}</span>
-          <div class="rating-compare-bars">
-            <div v-for="(value, index) in row.values" :key="value.id" class="rating-bar">
+          <div v-for="(value, index) in row.values" :key="value.id" class="rating-cell">
+            <div class="rating-cell-track">
               <i
                 :class="`fill-${index}`"
                 :style="{ width: `${(value.count / ratingMax) * 100}%` }"
               ></i>
-              <em v-if="value.count">{{ value.count }}</em>
             </div>
+            <b>{{ value.count }}</b>
           </div>
         </div>
         <p v-if="!data.ratings.some((member) => member.total)" class="form-hint">
