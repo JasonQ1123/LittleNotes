@@ -4,6 +4,8 @@ import { api } from '../api';
 import type { Statistics } from '../types';
 import AppIcon from '../components/AppIcon.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ErrorState from '../components/ErrorState.vue';
+import LoadingState from '../components/LoadingState.vue';
 const data = ref<Statistics>();
 const days = ref(90);
 const loading = ref(true);
@@ -57,12 +59,8 @@ onMounted(load);
       <option :value="365">最近一年</option>
     </select>
   </div>
-  <div v-if="loading" class="loading-state" role="status">
-    <span class="spinner"></span>正在回顾我们走过的路…
-  </div>
-  <div v-else-if="error" class="notice error-notice" role="alert">
-    {{ error }}<button class="text-button" @click="load">重新加载</button>
-  </div>
+  <LoadingState v-if="loading" text="正在回顾我们走过的路…" />
+  <ErrorState v-else-if="error" :message="error" @retry="load" />
   <template v-else-if="data"
     ><p v-if="insight" class="insight">{{ insight }}</p>
     <div class="stat-grid">

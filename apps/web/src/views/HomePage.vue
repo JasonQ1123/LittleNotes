@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue';
 import AppIcon from '../components/AppIcon.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ErrorState from '../components/ErrorState.vue';
+import LoadingState from '../components/LoadingState.vue';
 import RecordCard from '../components/RecordCard.vue';
 import { api } from '../api';
 import { useSession } from '../store';
@@ -73,12 +75,8 @@ onMounted(load);
       <div class="floating-flower"><AppIcon name="flower" :size="28" /></div>
     </div>
   </section>
-  <div v-if="error" class="notice error-notice" role="alert">
-    {{ error }}<button class="text-button" @click="load">重新加载</button>
-  </div>
-  <div v-if="loading" class="loading-state" role="status">
-    <span class="spinner"></span>正在翻开我们的小纸条…
-  </div>
+  <ErrorState v-if="error" :message="error" @retry="load" />
+  <LoadingState v-else-if="loading" text="正在翻开我们的小纸条…" />
   <template v-else-if="data">
     <section class="home-overview" aria-label="空间概览">
       <span

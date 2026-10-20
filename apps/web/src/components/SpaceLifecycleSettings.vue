@@ -320,7 +320,7 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--border);
 }
 .lifecycle-settings h3 {
-  font-size: 15px;
+  font-size: var(--text-sm);
 }
 .lifecycle-settings .section-heading {
   gap: 12px;
@@ -329,8 +329,8 @@ onBeforeUnmount(() => {
 }
 .lifecycle-settings > p {
   margin: 10px 0 16px;
-  color: var(--sage-dark);
-  font-size: 13px;
+  color: var(--muted);
+  font-size: var(--text-xs);
   line-height: 1.7;
 }
 .lifecycle-settings > p:last-child {
@@ -342,7 +342,7 @@ onBeforeUnmount(() => {
   margin-top: 18px;
 }
 .closed-space-card h4 {
-  font-size: 15px;
+  font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
 .closed-space-card p {
@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
 }
 .closed-space-dates {
-  color: var(--sage-dark);
-  font-size: 13px;
+  color: var(--muted);
+  font-size: var(--text-xs);
 }
 </style>
