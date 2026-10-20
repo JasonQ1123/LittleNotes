@@ -1,60 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
-  <title>LittleNotes</title>
-  <defs>
-    <linearGradient id="background" x1="12" y1="8" x2="137" y2="144" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#9faf98" />
-      <stop offset="1" stop-color="#b0bea3" />
-    </linearGradient>
-    <linearGradient id="back-paper" x1="32" y1="28" x2="94" y2="100" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffd5b5" />
-      <stop offset="1" stop-color="#f5b092" />
-    </linearGradient>
-    <linearGradient id="front-paper" x1="58" y1="55" x2="117" y2="115" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#fffdf0" />
-      <stop offset="1" stop-color="#fff5df" />
-    </linearGradient>
-    <linearGradient id="heart" x1="60" y1="45" x2="80" y2="65" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ff987d" />
-      <stop offset="1" stop-color="#ec775e" />
-    </linearGradient>
-    <filter id="paper-shadow" x="-25%" y="-20%" width="150%" height="155%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="2.5" stdDeviation="2" flood-color="#465a3f" flood-opacity="0.2" />
-    </filter>
-    <filter id="fold-shadow" x="-30%" y="-30%" width="170%" height="170%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="1" stdDeviation="0.7" flood-color="#a76c4e" flood-opacity="0.18" />
-    </filter>
-    <clipPath id="icon-corners">
-      <rect width="144" height="144" rx="40" />
-    </clipPath>
-  </defs>
-  <g clip-path="url(#icon-corners)">
-    <rect width="144" height="144" fill="url(#background)" />
-    <g transform="rotate(-12 61 64)">
-      <path
-        d="M40 28h47a7 7 0 0 1 7 7v58a7 7 0 0 1-7 7H35a7 7 0 0 1-7-7V40Z"
-        fill="url(#back-paper)"
-        stroke="#ffe6cf"
-        stroke-width="0.6"
-        filter="url(#paper-shadow)"
-      />
-      <path d="m28 40 12-12v6a6 6 0 0 1-6 6Z" fill="#ffead7" filter="url(#fold-shadow)" />
-    </g>
-    <g transform="rotate(16 84 84)">
-      <path
-        d="M61 55h51a7 7 0 0 1 7 7v40l-12 13H61a7 7 0 0 1-7-7V62a7 7 0 0 1 7-7Z"
-        fill="url(#front-paper)"
-        stroke="#fffef6"
-        stroke-width="0.6"
-        filter="url(#paper-shadow)"
-      />
-      <path d="M107 115v-6a7 7 0 0 1 7-7h5Z" fill="#eed6ae" />
-      <path d="M70 79h29m-29 10h20" fill="none" stroke="#f6b99d" stroke-width="4" stroke-linecap="round" />
-    </g>
-    <path
-      d="M70 66c-3-2-12-8-12-14 0-6 7-9 12-4 4-5 12-2 12 4 0 6-9 12-12 14Z"
-      fill="url(#heart)"
-      transform="rotate(-8 70 55)"
-      filter="url(#fold-shadow)"
+  <title>小纸条</title>
+  <rect width="144" height="144" rx="34" fill="#221E1B" />
+  <g transform="rotate(-4 72 74)">
+    <rect x="40" y="30" width="64" height="86" rx="6" fill="#FFFDFB" />
+    <rect x="56" y="54" width="32" height="5" rx="2.5" fill="#E3DCD3" />
+    <rect x="56" y="67" width="32" height="5" rx="2.5" fill="#E3DCD3" />
+    <rect x="56" y="80" width="20" height="5" rx="2.5" fill="#B4452B" />
+    <rect
+      x="57"
+      y="23"
+      width="30"
+      height="11"
+      rx="3"
+      fill="#B4452B"
+      transform="rotate(-8 72 28)"
     />
   </g>
 </svg>
