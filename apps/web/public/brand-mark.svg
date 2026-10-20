@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <title>小纸条</title>
+  <g transform="rotate(-4 24 26)">
+    <rect x="9" y="7" width="30" height="36" rx="4" fill="#FFFDFB" />
+    <rect x="15" y="17" width="18" height="3" rx="1.5" fill="#E3DCD3" />
+    <rect x="15" y="23" width="18" height="3" rx="1.5" fill="#E3DCD3" />
+    <rect x="15" y="29" width="11" height="3" rx="1.5" fill="#B4452B" />
+  </g>
+  <rect
+    x="17"
+    y="3.5"
+    width="15"
+    height="6"
+    rx="2"
+    fill="#B4452B"
+    transform="rotate(-8 24 6.5)"
+  />
+</svg>

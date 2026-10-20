@@ -1,5 +1,6 @@
 <template>
-  <img class="brand-mark brand-image" src="/favicon.svg" alt="" width="44" height="44" />
+  <!-- 侧栏与登录页都在深色底上，用没有底板的纸片标，避免深色方块糊在一起。 -->
+  <img class="brand-mark brand-image" src="/brand-mark.svg?v=2" alt="" width="44" height="44" />
 </template>
 
 <style scoped>
