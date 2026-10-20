@@ -62,7 +62,8 @@
 - 圆角四档：`8 / 12 / 16 / 20`（`--radius-sm..xl`），胶囊用 `--radius-pill`。不再出现 9/11/13/18px 这类一次性值。
 - 阴影三档：`--shadow-1` 卡片、`--shadow-2` 浮层/悬停、`--shadow-3` 弹窗。卡片优先用 1px 边表达层级，阴影只是补充。
 - 断点三个：`640px`（手机）、`900px`（平板/侧栏收起）、`1200px`（宽屏）。新增断点前先证明现有三档无法表达。
-- 触控目标 ≥44px；`:focus-visible` 用 `--focus` 2px 环；`prefers-reduced-motion` 下关闭过渡。
+- 触控目标 ≥44px（移动端小按钮与图标按钮至少 40px）；`:focus-visible` 用 `--focus` 2px 环；`prefers-reduced-motion` 下关闭过渡。
+- 过渡统一：`--dur` 180ms、`--ease-out` `cubic-bezier(.2,.8,.2,1)`；只给已有交互加过渡，不给静态元素凭空加动效。
 
 ## 5. 组件档位
 
@@ -106,3 +107,4 @@
 - 暗色模式未实现，但颜色全部走 token，后续加一组 `[data-theme='dark']` 覆盖即可。
 - 标题使用系统宋体，已决定不自托管 webfont（单文件子集会让首屏多 0.7–1.1MB，切片方案对两个人的产品过度），Windows 落 SimSun 作为已知差异接受。
 - `app.css` 仍保留旧结构规则（布局与少量遗留选择器），新的视觉规则集中在 `overrides.css`；两者顺序不能调换。
+- `index.html` 里的 `og:image` 目前写相对路径；OG 协议要求绝对地址，生产域名（`SITE_ADDRESS`）确定后需要改成 `https://<域名>/og.png`。
