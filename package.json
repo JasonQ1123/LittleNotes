@@ -14,7 +14,8 @@
     "test:deploy": "node scripts/test-deploy-preflight.mjs",
     "db:postgres:sync": "node scripts/sync-postgres.mjs",
     "package:deploy": "node scripts/package-deploy.mjs",
-    "test:e2e": "pnpm build && playwright test"
+    "test:e2e": "pnpm build && playwright test",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
