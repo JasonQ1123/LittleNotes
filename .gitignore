@@ -14,5 +14,6 @@ uploads/
 *.dump
 .env.*
 !.env.example
+.dsh/
 deploy/.public-enabled
 deploy/.ip-enabled

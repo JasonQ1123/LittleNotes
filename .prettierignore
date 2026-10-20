@@ -5,3 +5,12 @@ test-results
 playwright-report
 pnpm-lock.yaml
 apps/api/prisma/migrations
+
+# 生成的外部素材与草稿
+output
+
+# DSH 会话级技能资源，不属于仓库内容
+.dsh
+
+# 含接口伪代码，Prettier 会按 TS 重排代码块
+docs/WECHAT_MINIPROGRAM_MIGRATION.md
