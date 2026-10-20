@@ -82,7 +82,7 @@ onMounted(load);
           <div v-for="item in data.trend" :key="item.label" class="chart-column">
             <span>{{ item.count }}</span>
             <div class="chart-track">
-              <div :style="{ height: `${(item.count / maxTrend) * 100}%` }"></div>
+              <div v-if="item.count" :style="{ height: `${(item.count / maxTrend) * 100}%` }"></div>
             </div>
             <small>{{ item.label.slice(5) }}月</small>
           </div>
@@ -98,15 +98,10 @@ onMounted(load);
         <h2>我们常聊到的事</h2>
         <p class="section-description">按主要分类汇总，每张纸条计入一个分类</p>
         <div class="category-bars">
-          <div v-for="(item, index) in data.categories" :key="item.name" class="category-bar">
+          <div v-for="item in data.categories" :key="item.name" class="category-bar">
             <span>{{ item.name }}</span>
             <div>
-              <i
-                :style="{
-                  width: `${(item.count / maxCategory) * 100}%`,
-                  background: index % 2 ? 'var(--chart-peach)' : 'var(--chart-sage)',
-                }"
-              ></i>
+              <i :style="{ width: `${(item.count / maxCategory) * 100}%` }"></i>
             </div>
             <strong>{{ item.count }}</strong>
           </div>
@@ -129,10 +124,9 @@ onMounted(load);
               <span
                 v-for="n in 5"
                 :key="n"
-                :class="{
-                  filled: member.total > 0 && n <= Math.ceil((item.count / member.total) * 5),
-                }"
+                :class="{ filled: n <= Math.min(item.count, 5) }"
               ></span>
+              <em v-if="item.count > 5" class="rating-extra">+{{ item.count - 5 }}</em>
             </div>
             <strong>{{ item.count }} 次</strong>
           </div>
