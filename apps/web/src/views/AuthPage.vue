@@ -46,7 +46,6 @@ async function submit() {
         <BrandMark /><span>小纸条<small>把彼此放在心上</small></span>
       </div>
       <div class="auth-story-body">
-        <span class="eyebrow">FOR THE TWO OF US</span>
         <h1>有些话，写下来。<br />有些约定，<span>一起记得。</span></h1>
         <p>收藏每一次认真沟通，<br />让和好之后的小改变，有迹可循。</p>
         <div class="auth-paper-board" aria-hidden="true">

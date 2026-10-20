@@ -33,6 +33,28 @@ const myReconciled = computed(() =>
 const myArchiveVote = computed(() =>
   note.value?.archiveVotes.some((v) => v.userId === session.user?.id),
 );
+const myPerspective = computed(() =>
+  note.value?.perspectives.find((p) => p.userId === session.user?.id),
+);
+/** One visible next action per page; read-only states return null. */
+const nextStep = computed(() => {
+  const n = note.value;
+  if (!n || n.status === 'draft' || n.status === 'archived') return null;
+  if (!myPerspective.value?.publishedAt)
+    return { label: '补充你的视角', hint: '对方已经写完了，还差你的这一份。', tab: 'perspectives' };
+  if (n.agreements.some((a) => a.status === 'pending'))
+    return { label: '去确认这份约定', hint: '有一条约定在等两个人确认。', tab: 'agreements' };
+  const cycle = n.agreements.find((a) => a.status === 'active')?.cycles[0];
+  if (
+    cycle &&
+    new Date(cycle.dueAt) <= new Date() &&
+    !cycle.reviews.some((r) => r.userId === session.user?.id)
+  )
+    return { label: '填写这次回访', hint: '约好的回访到期了，看看有没有变化。', tab: 'reviews' };
+  if (!myArchiveVote.value)
+    return { label: '看看要不要结束跟进', hint: '想翻篇的时候，两个人一起结束。', tab: 'reviews' };
+  return null;
+});
 const story = reactive({
   title: '',
   description: '',
@@ -217,6 +239,15 @@ onMounted(load);
         name="archive"
         :size="19"
       />你们已经一起结束了这次跟进。经过、约定和回访都保存在这里。
+    </div>
+    <div v-if="nextStep" class="detail-action">
+      <div class="detail-action__label">
+        <span>接下来的一步</span>
+        <strong>{{ nextStep.hint }}</strong>
+      </div>
+      <button class="btn primary" @click="setTab(nextStep.tab)">
+        {{ nextStep.label }}<AppIcon name="arrow" :size="17" />
+      </button>
     </div>
     <div class="detail-tabs" role="tablist" aria-label="复盘内容">
       <button

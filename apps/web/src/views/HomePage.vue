@@ -55,7 +55,7 @@ onMounted(load);
   <section class="home-hero">
     <div class="hero-copy">
       <span class="hero-kicker"><AppIcon name="heart" :size="16" />给我们，好好相处的日常</span>
-      <h2>和好以后，<br />也记得一起向前。</h2>
+      <h2>有些话，先写下来。<br />有些约定，一起记得。</h2>
       <p>把没说完的话写下来，<br />把商量好的事，慢慢做到。</p>
       <RouterLink v-if="!session.space" to="/space" class="btn hero-button"
         >建立我们的空间<AppIcon name="arrow" :size="17"
@@ -82,16 +82,16 @@ onMounted(load);
   <template v-else-if="data">
     <section class="home-overview" aria-label="空间概览">
       <span
-        ><AppIcon name="note" :size="16" />一起写下
-        <strong>{{ data.counts.records }}</strong> 张纸条</span
+        ><strong>{{ data.counts.records }}</strong
+        ><em>张纸条 · 一起写下</em></span
       >
       <span
-        ><AppIcon name="agreement" :size="16" />正在努力的
-        <strong>{{ data.counts.activeAgreements }}</strong> 份约定</span
+        ><strong>{{ data.counts.activeAgreements }}</strong
+        ><em>份约定 · 正在努力</em></span
       >
-      <span
-        ><AppIcon name="clock" :size="16" /><strong>{{ data.counts.dueReviews }}</strong>
-        件待回访</span
+      <span :class="{ accent: data.counts.dueReviews > 0 }"
+        ><strong>{{ data.counts.dueReviews }}</strong
+        ><em>件待回访 · 等你看看</em></span
       >
     </section>
     <div v-if="session.space && session.space.members.length < 2" class="pair-banner">

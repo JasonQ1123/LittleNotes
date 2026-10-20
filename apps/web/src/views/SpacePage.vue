@@ -142,7 +142,7 @@ async function logout() {
       <section class="panel settings-card">
         <h2>我的小名片</h2>
         <ProfileSettings />
-        <button class="btn secondary full" :disabled="busy" @click="logout">
+        <button class="btn quiet full" :disabled="busy" @click="logout">
           <AppIcon name="logout" :size="17" />退出登录
         </button>
       </section>
@@ -173,7 +173,7 @@ async function logout() {
   margin-top: 24px;
   padding: 20px 0 0;
   border-top: 1px solid var(--border);
-  color: var(--sage-dark);
+  color: var(--sage-strong);
 }
 .space-privacy-note > svg {
   flex-shrink: 0;
