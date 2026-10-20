@@ -68,9 +68,8 @@ a {
 .eyebrow {
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.1em;
   color: var(--primary);
-  text-transform: uppercase;
   margin-bottom: var(--space-3);
 }
 .muted {
@@ -1763,7 +1762,27 @@ textarea {
   color: var(--on-primary);
 }
 
-/* ---- 15. responsive --------------------------------------------------- */
+/* ---- 15. motion ------------------------------------------------------- */
+/* 统一过渡的时长与缓动：只调已有过渡，不给静态元素凭空加动效。 */
+.btn,
+.icon-button,
+.text-button,
+.nav-item,
+.mobile-nav a,
+.segmented button,
+.record-card,
+.todo-row,
+.related-row {
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--dur);
+}
+.detail-tabs button {
+  transition-property: color, border-color, background-color;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--dur);
+}
+
+/* ---- 16. responsive --------------------------------------------------- */
 @media (max-width: 1200px) {
   .main-content {
     padding: var(--space-5) var(--space-5) 0;
@@ -1776,6 +1795,17 @@ textarea {
 @media (max-width: 900px) {
   .sidebar {
     display: none;
+  }
+  /* 触控目标：小按钮与图标按钮在手机上抬到 40px 以上。 */
+  .btn.small {
+    min-height: 40px;
+  }
+  .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .segmented button {
+    min-height: 40px;
   }
   .workspace {
     margin-left: 0;
