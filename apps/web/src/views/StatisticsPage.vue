@@ -123,11 +123,14 @@ onMounted(load);
           :aria-label="data.trend.map((t) => `${t.label}：${t.count}张`).join('，')"
         >
           <div v-for="item in data.trend" :key="item.label" class="chart-column">
-            <span :class="['chart-value', { 'is-zero': item.count === 0 }]">{{
-              item.count || ''
-            }}</span>
             <div class="chart-track">
-              <div v-if="item.count" :style="{ height: `${(item.count / maxTrend) * 100}%` }"></div>
+              <div
+                v-if="item.count"
+                class="chart-bar"
+                :style="{ height: `${(item.count / maxTrend) * 100}%` }"
+              >
+                <span class="chart-value">{{ item.count }}</span>
+              </div>
             </div>
             <small>{{ axisLabel(item.label) }}</small>
           </div>
