@@ -1,0 +1,130 @@
+/* Design tokens — single source of truth for colour, type, space, radius and depth.
+   Chromatic ramps generated with the refactoring-ui palette script from:
+   ember #B4452B, sage #5A7050, ochre #8C5A14, danger #9C2E26.
+   Neutral ramp is hand-anchored so every text/background pair passes WCAG AA
+   (checked with the same skill's check_contrast.py). */
+:root {
+  --white: #ffffff;
+  --black: #000000;
+  /* ember */
+  --ember-100: #fff5eb;
+  --ember-200: #ffd5a8;
+  --ember-300: #ecb578;
+  --ember-400: #d5804d;
+  --ember-500: #b4452b;
+  --ember-600: #a13621;
+  --ember-700: #8e2817;
+  --ember-800: #7b1a0d;
+  --ember-900: #670d04;
+  /* sage */
+  --sage-100: #f7fbef;
+  --sage-200: #d3dbc4;
+  --sage-300: #aeba9b;
+  --sage-400: #849773;
+  --sage-500: #5a7050;
+  --sage-600: #4f6546;
+  --sage-700: #43593c;
+  --sage-800: #384e33;
+  --sage-900: #2e4229;
+  /* ochre */
+  --ochre-100: #fffdeb;
+  --ochre-200: #fdf19a;
+  --ochre-300: #e2c662;
+  --ochre-400: #c29331;
+  --ochre-500: #8c5a14;
+  --ochre-600: #834d10;
+  --ochre-700: #7a410b;
+  --ochre-800: #713607;
+  --ochre-900: #682b03;
+  /* danger */
+  --danger-100: #fff3eb;
+  --danger-200: #fac7a5;
+  --danger-300: #e2a074;
+  --danger-400: #c76a45;
+  --danger-500: #9c2e26;
+  --danger-600: #8e251e;
+  --danger-700: #801c17;
+  --danger-800: #71140f;
+  --danger-900: #630c08;
+  /* neutral (contrast-verified) */
+  --stone-0: #fffdfb;
+  --stone-100: #f4f1ec;
+  --stone-200: #e3dcd3;
+  --stone-300: #c9bfb5;
+  --stone-400: #9c928a;
+  --stone-500: #7a716a;
+  --stone-600: #6a625b;
+  --stone-700: #554e48;
+  --stone-800: #3a342e;
+  --stone-900: #1e1a17;
+
+  /* semantic surfaces */
+  --canvas: var(--stone-100);
+  --surface: var(--stone-0);
+  --surface-alt: #faf7f2;
+  --rail: #221e1b;
+  --rail-2: #2c2723;
+  --rail-text: #efe9e1;
+  --rail-muted: #b4a99c;
+  --border: var(--stone-200);
+  --border-strong: var(--stone-300);
+
+  /* semantic text */
+  --ink: var(--stone-900);
+  --muted: var(--stone-700);
+  --subtle: var(--stone-600);
+  --on-primary: var(--white);
+
+  /* semantic accents */
+  --primary: var(--ember-500);
+  --primary-hover: var(--ember-600);
+  --primary-soft: var(--ember-100);
+  --primary-tint: var(--ember-300);
+  --sage: var(--sage-500);
+  --sage-strong: var(--sage-700);
+  --sage-soft: var(--sage-100);
+  --warning: var(--ochre-500);
+  --warning-soft: var(--ochre-100);
+  --danger: var(--danger-500);
+  --danger-soft: var(--danger-100);
+  --focus: var(--ember-500);
+  --tape: #e8c79e;
+  --hero-gradient: linear-gradient(135deg, #f6e7da 0%, #f2dcc8 55%, #edd2bc 100%);
+
+  /* type */
+  --font-ui: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-display: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', 'SimSun', serif;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 18px;
+  --text-lg: 24px;
+  --text-xl: 30px;
+  --text-2xl: 40px;
+
+  /* space */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* depth */
+  --shadow-1: 0 1px 2px rgb(30 26 23 / 6%);
+  --shadow-2: 0 8px 24px rgb(30 26 23 / 10%);
+  --shadow-3: 0 24px 64px rgb(30 26 23 / 20%);
+
+  /* layout */
+  --rail-w: 248px;
+  --content: 1160px;
+  --measure: 32em;
+}
