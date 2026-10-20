@@ -12,9 +12,8 @@ const loading = ref(true);
 const error = ref('');
 let request = 0;
 const maxTrend = computed(() => Math.max(1, ...(data.value?.trend.map((t) => t.count) || [])));
-const maxCategory = computed(() =>
-  Math.max(1, ...(data.value?.categories.map((t) => t.count) || [])),
-);
+/** 周分桶会有 13–14 列，标签隔一个显示才不互相压住。 */
+const labelStep = computed(() => ((data.value?.trend.length || 0) > 8 ? 2 : 1));
 const sortedCategories = computed(() =>
   [...(data.value?.categories || [])].sort((a, b) => b.count - a.count),
 );
@@ -31,6 +30,30 @@ const insight = computed(() => {
   const top = sortedCategories.value.find((item) => item.count > 0);
   return `最近 ${d.days} 天，你们一起留下 ${d.total} 张纸条${top ? `，聊得最多的是「${top.name}」` : ''}。`;
 });
+/** 两种范围的横轴单位不同，文案要跟着变。 */
+const trendUnit = computed(() =>
+  data.value?.bucket === 'month' ? '按自然月统计' : '每周一为一周起点，本周截止今天',
+);
+function categoryPercent(count: number) {
+  const total = data.value?.total || 0;
+  return total ? Math.round((count / total) * 100) : 0;
+}
+/** 把「每个成员的评分分布」转成「每个评分维度下两个人的数量」，便于横向对比。 */
+const ratingRows = computed(() => {
+  const members = data.value?.ratings || [];
+  const names = members[0]?.values || [];
+  return names.map((value, index) => ({
+    name: value.name,
+    total: members.reduce((sum, member) => sum + (member.values[index]?.count || 0), 0),
+    values: members.map((member) => ({
+      id: member.id,
+      count: member.values[index]?.count || 0,
+    })),
+  }));
+});
+const ratingMax = computed(() =>
+  Math.max(1, ...ratingRows.value.flatMap((row) => row.values.map((value) => value.count))),
+);
 async function load() {
   const current = ++request;
   loading.value = true;
@@ -87,19 +110,27 @@ onMounted(load);
     <div class="analytics-grid">
       <section class="panel content-panel">
         <h2>记录的足迹</h2>
-        <p class="section-description">按发生时间统计的共享纸条数量</p>
+        <p class="section-description">按发生时间统计的共享纸条数量，{{ trendUnit }}</p>
         <div
           v-if="data.total"
           class="bar-chart"
           role="img"
           :aria-label="data.trend.map((t) => `${t.label}：${t.count}张`).join('，')"
         >
-          <div v-for="item in data.trend" :key="item.label" class="chart-column">
-            <span :class="{ 'is-zero': item.count === 0 }">{{ item.count }}</span>
+          <div v-for="(item, index) in data.trend" :key="item.label" class="chart-column">
+            <span :class="['chart-value', { 'is-zero': item.count === 0 }]">{{
+              item.count || ''
+            }}</span>
             <div class="chart-track">
               <div v-if="item.count" :style="{ height: `${(item.count / maxTrend) * 100}%` }"></div>
             </div>
-            <small>{{ item.label.slice(5) }}月</small>
+            <small>{{
+              index % labelStep === 0
+                ? data.bucket === 'month'
+                  ? `${item.label.slice(5)}月`
+                  : item.label
+                : ''
+            }}</small>
           </div>
         </div>
         <EmptyState
@@ -120,9 +151,14 @@ onMounted(load);
           >
             <span>{{ item.name }}</span>
             <div>
-              <i :style="{ width: `${(item.count / maxCategory) * 100}%` }"></i>
+              <i :style="{ width: `${categoryPercent(item.count)}%` }"></i>
             </div>
-            <strong>{{ item.count }}</strong>
+            <strong
+              >{{ item.count
+              }}<em v-if="item.count" class="category-percent"
+                >{{ categoryPercent(item.count) }}%</em
+              ></strong
+            >
           </div>
           <button
             v-if="hiddenCategories"
@@ -139,29 +175,32 @@ onMounted(load);
       <p class="section-description">
         汇总这段时间内提交或更新的回访，每人每轮计一次，保留彼此的不同感受。
       </p>
-      <div class="review-comparison">
-        <section v-for="member in data.ratings" :key="member.id" class="panel content-panel">
-          <h3>
-            {{ member.nickname }}的回访 <span class="count-pill">{{ member.total }}</span>
-          </h3>
-          <div
-            v-for="item in member.values"
-            :key="item.name"
-            :class="['rating-row', { 'is-empty': item.count === 0 }]"
-          >
-            <span>{{ item.name }}</span>
-            <div class="rating-dots">
-              <span
-                v-for="n in 5"
-                :key="n"
-                :class="{ filled: n <= Math.min(item.count, 5) }"
-              ></span>
-              <em v-if="item.count > 5" class="rating-extra">+{{ item.count - 5 }}</em>
+      <div class="panel content-panel rating-compare">
+        <div class="rating-legend">
+          <span v-for="(member, index) in data.ratings" :key="member.id">
+            <i :class="`legend-${index}`"></i>{{ member.nickname }}
+            <small>{{ member.total }} 次</small>
+          </span>
+        </div>
+        <div
+          v-for="row in ratingRows"
+          :key="row.name"
+          :class="['rating-compare-row', { 'is-zero': row.total === 0 }]"
+        >
+          <span class="rating-compare-label">{{ row.name }}</span>
+          <div class="rating-compare-bars">
+            <div v-for="(value, index) in row.values" :key="value.id" class="rating-bar">
+              <i
+                :class="`fill-${index}`"
+                :style="{ width: `${(value.count / ratingMax) * 100}%` }"
+              ></i>
+              <em v-if="value.count">{{ value.count }}</em>
             </div>
-            <strong>{{ item.count }} 次</strong>
           </div>
-          <p v-if="!member.total" class="form-hint">还没有留下回访，等一个合适的时间再回来看看。</p>
-        </section>
+        </div>
+        <p v-if="!data.ratings.some((member) => member.total)" class="form-hint">
+          还没有留下回访，等一个合适的时间再回来看看。
+        </p>
       </div>
     </section>
     <section class="section-block">

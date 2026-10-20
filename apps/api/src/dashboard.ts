@@ -95,24 +95,63 @@ export class DashboardService {
       name,
       count: rows.filter((r) => r.category === name).length,
     }));
-    const monthFormatter = new Intl.DateTimeFormat('en-CA', {
+    // 30 天与 90 天按周分桶（周一为一周起点，最后一周截止到今天）；
+    // 一年跨度按周会有 52 根柱子，仍按自然月分桶。
+    const bucket: 'week' | 'month' = days <= 120 ? 'week' : 'month';
+    const dayParts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Shanghai',
       year: 'numeric',
       month: '2-digit',
+      day: '2-digit',
     });
-    const monthKey = (date: Date) => {
-      const parts = monthFormatter.formatToParts(date);
-      return `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}`;
+    const localDay = (date: Date) => {
+      const parts = dayParts.formatToParts(date);
+      const pick = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+      return Date.UTC(pick('year'), pick('month') - 1, pick('day'));
     };
-    const [startYear, startMonth] = monthKey(new Date(since)).split('-').map(Number);
-    const [endYear, endMonth] = monthKey(new Date(now)).split('-').map(Number);
-    const months = (endYear - startYear) * 12 + endMonth - startMonth + 1;
-    const trend = Array.from({ length: months }, (_, index) => {
-      const label = new Date(Date.UTC(startYear, startMonth - 1 + index, 1))
-        .toISOString()
-        .slice(0, 7);
-      return { label, count: rows.filter((r) => monthKey(r.occurredAt) === label).length };
-    });
+    const mondayOf = (day: number) => {
+      const weekday = new Date(day).getUTCDay(); // 0 = 周日
+      return day - ((weekday + 6) % 7) * 86400_000;
+    };
+    const shortDate = (day: number) => {
+      const date = new Date(day);
+      return `${String(date.getUTCMonth() + 1).padStart(2, '0')}/${String(date.getUTCDate()).padStart(2, '0')}`;
+    };
+    let trend: { label: string; count: number }[];
+    if (bucket === 'week') {
+      const firstWeek = mondayOf(localDay(new Date(since)));
+      const lastWeek = mondayOf(localDay(new Date(now)));
+      const weeks = Math.floor((lastWeek - firstWeek) / (7 * 86400_000)) + 1;
+      trend = Array.from({ length: weeks }, (_, index) => ({
+        label: shortDate(firstWeek + index * 7 * 86400_000),
+        count: 0,
+      }));
+      for (const record of rows) {
+        const index = Math.floor(
+          (mondayOf(localDay(record.occurredAt)) - firstWeek) / (7 * 86400_000),
+        );
+        if (index >= 0 && index < weeks) trend[index].count++;
+      }
+    } else {
+      const monthFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+      });
+      const monthKey = (date: Date) => {
+        const parts = monthFormatter.formatToParts(date);
+        return `${parts.find((p) => p.type === 'year')!.value}-${parts.find((p) => p.type === 'month')!.value}`;
+      };
+      const [startYear, startMonth] = monthKey(new Date(since)).split('-').map(Number);
+      const [endYear, endMonth] = monthKey(new Date(now)).split('-').map(Number);
+      const months = (endYear - startYear) * 12 + endMonth - startMonth + 1;
+      trend = Array.from({ length: months }, (_, index) => {
+        const label = new Date(Date.UTC(startYear, startMonth - 1 + index, 1))
+          .toISOString()
+          .slice(0, 7);
+        return { label, count: rows.filter((r) => monthKey(r.occurredAt) === label).length };
+      });
+    }
     const members = user.spaceId
       ? await this.db.user.findMany({
           where: { space: activeSpaceScope(user) },
@@ -159,6 +198,7 @@ export class DashboardService {
       .sort((a, b) => b.count - a.count);
     return {
       days,
+      bucket,
       total: rows.length,
       archived: rows.filter((r) => r.status === 'archived').length,
       categories,

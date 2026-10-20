@@ -1195,6 +1195,7 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
+  align-items: start;
 }
 .insight {
   margin-bottom: var(--space-4);
@@ -1255,6 +1256,7 @@ textarea {
   font-size: var(--text-xs);
   color: var(--subtle);
   margin-top: 6px;
+  white-space: nowrap;
 }
 .category-bars {
   display: flex;
@@ -1263,7 +1265,7 @@ textarea {
 }
 .category-bar {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) 32px;
+  grid-template-columns: 76px minmax(0, 1fr) 64px;
   align-items: center;
   gap: var(--space-3);
   font-size: var(--text-xs);
@@ -1320,6 +1322,96 @@ textarea {
 }
 .rating-row.is-empty > span,
 .rating-row.is-empty > strong {
+  color: var(--subtle);
+}
+.chart-value {
+  font-variant-numeric: tabular-nums;
+}
+.category-percent {
+  margin-left: 4px;
+  font-style: normal;
+  font-size: var(--text-xs);
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+}
+.category-bar strong {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+}
+/* 回访从「每人一张卡」改成「按评分维度横向对比两个人」。 */
+.rating-compare {
+  display: flex;
+  flex-direction: column;
+}
+.rating-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.rating-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rating-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.rating-legend small {
+  color: var(--subtle);
+}
+.legend-0,
+.fill-0 {
+  background: var(--primary);
+}
+.legend-1,
+.fill-1 {
+  background: var(--sage);
+}
+.rating-compare-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.rating-compare-row:last-of-type {
+  border-bottom: 0;
+}
+.rating-compare-row.is-zero {
+  color: var(--subtle);
+}
+.rating-compare-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rating-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rating-bar i {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex: 0 0 auto;
+}
+.rating-bar em {
+  min-width: 16px;
+  font-style: normal;
+  font-size: var(--text-xs);
+  color: var(--ink);
+}
+.rating-compare-row.is-zero .rating-bar em {
   color: var(--subtle);
 }
 .rating-dots {
