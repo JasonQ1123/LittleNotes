@@ -1227,22 +1227,36 @@ textarea {
   justify-content: flex-end;
   min-width: 0;
 }
-.chart-column > span {
-  font-size: var(--text-xs);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.chart-column > span.is-zero {
-  color: var(--subtle);
-}
 .chart-track {
   display: flex;
   align-items: flex-end;
   justify-content: center;
   width: 100%;
+  max-width: none;
+  height: auto;
   flex: 1;
   background: none;
+  border-radius: 0;
   border-bottom: 1px solid var(--border-strong);
+}
+.chart-bar {
+  position: relative;
+  width: 54%;
+  max-width: 64px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--primary);
+}
+/* 数值紧贴柱顶：数据标签要挨着它描述的那根柱子，而不是浮在图表顶部。 */
+.chart-value {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  margin-bottom: 4px;
+  transform: translateX(-50%);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .chart-track > div {
   width: 52%;
@@ -1332,9 +1346,6 @@ textarea {
 .rating-row.is-empty > span,
 .rating-row.is-empty > strong {
   color: var(--subtle);
-}
-.chart-value {
-  font-variant-numeric: tabular-nums;
 }
 .category-bar strong {
   display: inline-flex;
