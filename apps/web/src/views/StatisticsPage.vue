@@ -13,6 +13,22 @@ const maxTrend = computed(() => Math.max(1, ...(data.value?.trend.map((t) => t.c
 const maxCategory = computed(() =>
   Math.max(1, ...(data.value?.categories.map((t) => t.count) || [])),
 );
+const sortedCategories = computed(() =>
+  [...(data.value?.categories || [])].sort((a, b) => b.count - a.count),
+);
+const showAllCategories = ref(false);
+const visibleCategories = computed(() =>
+  sortedCategories.value.filter((item) => item.count > 0 || showAllCategories.value),
+);
+const hiddenCategories = computed(
+  () => sortedCategories.value.filter((item) => item.count === 0).length,
+);
+const insight = computed(() => {
+  const d = data.value;
+  if (!d || !d.total) return '';
+  const top = sortedCategories.value.find((item) => item.count > 0);
+  return `最近 ${d.days} 天，你们一起留下 ${d.total} 张纸条${top ? `，聊得最多的是「${top.name}」` : ''}。`;
+});
 async function load() {
   const current = ++request;
   loading.value = true;
@@ -48,7 +64,8 @@ onMounted(load);
     {{ error }}<button class="text-button" @click="load">重新加载</button>
   </div>
   <template v-else-if="data"
-    ><div class="stat-grid">
+    ><p v-if="insight" class="insight">{{ insight }}</p>
+    <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-icon sage-bg"><AppIcon name="note" /></div>
         <div>
@@ -80,7 +97,7 @@ onMounted(load);
           :aria-label="data.trend.map((t) => `${t.label}：${t.count}张`).join('，')"
         >
           <div v-for="item in data.trend" :key="item.label" class="chart-column">
-            <span>{{ item.count }}</span>
+            <span :class="{ 'is-zero': item.count === 0 }">{{ item.count }}</span>
             <div class="chart-track">
               <div v-if="item.count" :style="{ height: `${(item.count / maxTrend) * 100}%` }"></div>
             </div>
@@ -98,13 +115,24 @@ onMounted(load);
         <h2>我们常聊到的事</h2>
         <p class="section-description">按主要分类汇总，每张纸条计入一个分类</p>
         <div class="category-bars">
-          <div v-for="item in data.categories" :key="item.name" class="category-bar">
+          <div
+            v-for="item in visibleCategories"
+            :key="item.name"
+            :class="['category-bar', { 'is-zero': item.count === 0 }]"
+          >
             <span>{{ item.name }}</span>
             <div>
               <i :style="{ width: `${(item.count / maxCategory) * 100}%` }"></i>
             </div>
             <strong>{{ item.count }}</strong>
           </div>
+          <button
+            v-if="hiddenCategories"
+            class="text-button more-toggle"
+            @click="showAllCategories = !showAllCategories"
+          >
+            {{ showAllCategories ? '只看有记录的分类' : `展开其余 ${hiddenCategories} 个分类` }}
+          </button>
         </div>
       </section>
     </div>
@@ -118,7 +146,11 @@ onMounted(load);
           <h3>
             {{ member.nickname }}的回访 <span class="count-pill">{{ member.total }}</span>
           </h3>
-          <div v-for="item in member.values" :key="item.name" class="rating-row">
+          <div
+            v-for="item in member.values"
+            :key="item.name"
+            :class="['rating-row', { 'is-empty': item.count === 0 }]"
+          >
             <span>{{ item.name }}</span>
             <div class="rating-dots">
               <span

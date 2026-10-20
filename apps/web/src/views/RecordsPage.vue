@@ -46,31 +46,36 @@ onMounted(() => load());
     >
   </div>
   <form class="filter-panel panel" @submit.prevent="load(true)">
-    <label class="search-field"
-      ><AppIcon name="search" :size="19" /><input
-        v-model="filters.q"
-        aria-label="搜索纸条"
-        placeholder="搜索标题或事件经过…"
-        maxlength="100" /></label
-    ><label class="sr-label"
-      >分类<select v-model="filters.category" aria-label="按分类筛选" @change="load(true)">
-        <option value="">全部分类</option>
-        <option v-for="category in categories" :key="category">{{ category }}</option>
-      </select></label
-    ><label class="sr-label"
-      >状态<select v-model="filters.status" aria-label="按状态筛选" @change="load(true)">
-        <option value="">全部状态</option>
-        <option v-for="(label, value) in statusLabels" :key="value" :value="value">
-          {{ label }}
-        </option>
-      </select></label
-    ><input
-      v-model="filters.tag"
-      class="tag-filter"
-      aria-label="按标签筛选"
-      placeholder="标签"
-      maxlength="30"
-    /><button class="btn secondary small">查找</button>
+    <div class="filter-row">
+      <label class="search-field"
+        ><AppIcon name="search" :size="18" /><input
+          v-model="filters.q"
+          aria-label="搜索纸条"
+          placeholder="搜索标题或事件经过…"
+          maxlength="100" /></label
+      ><button class="btn secondary">查找</button>
+    </div>
+    <div class="filter-row secondary-row">
+      <label class="sr-label"
+        >分类<select v-model="filters.category" aria-label="按分类筛选" @change="load(true)">
+          <option value="">全部分类</option>
+          <option v-for="category in categories" :key="category">{{ category }}</option>
+        </select></label
+      ><label class="sr-label"
+        >状态<select v-model="filters.status" aria-label="按状态筛选" @change="load(true)">
+          <option value="">全部状态</option>
+          <option v-for="(label, value) in statusLabels" :key="value" :value="value">
+            {{ label }}
+          </option>
+        </select></label
+      ><input
+        v-model="filters.tag"
+        class="tag-filter"
+        aria-label="按标签筛选"
+        placeholder="标签"
+        maxlength="30"
+      />
+    </div>
   </form>
   <div class="list-summary">
     <span>{{ data?.total || 0 }} 张纸条，每一张都值得被认真对待</span
