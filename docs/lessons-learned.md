@@ -4,6 +4,24 @@
 
 格式见 [开发流程](DEVELOPMENT.md) 附录 D。每条包含：日期、场景、症状、根因、做法、预防。
 
+## CI 镜像来源可以与生产分开配置
+
+- 日期：2026-10-27
+- 场景：PR #3 的容器检查在 `deploy.sh` 构建初期失败。
+- 症状：读取 ECR Public 的 `node:24-bookworm-slim` 镜像信息时返回 `429 Too Many Requests - Data limit exceeded`，尚未执行应用冒烟。
+- 根因：CI 只提前缓存了 PostgreSQL，Dockerfile 的 Node 和 Caddy 基础镜像仍需从 ECR 获取；镜像仓库限流与应用代码无关。
+- 做法：仅在 CI 工作区把 Dockerfile 的镜像前缀替换为 Docker Hub 官方镜像地址；生产继续使用部署环境可访问的 ECR 官方镜像。
+- 预防：容器检查失败先区分仓库拉取、构建、启动和业务断言阶段；不要用修改生产镜像配置解决 CI 专属网络问题。
+
+## 正式域名变更需要同步冒烟请求来源
+
+- 日期：2026-10-27
+- 场景：CI 的生产容器启动成功，但部署冒烟第一次登录就失败。
+- 症状：`POST /api/auth/login` 返回 403。
+- 根因：冒烟固定发送 `Origin: https://littlenotes.cn`，而实际允许来源已经是 `https://web.littlenotes.cn`；API 的来源校验按设计拒绝请求。
+- 做法：同步冒烟的 Origin 与 HTTPS 配置校验域名，保持来源检查规则。
+- 预防：域名切换时同时检查部署默认值、CI 请求头、Caddy 验证参数和邀请入口。
+
 ## 全量浏览器回归需要独立的登录限额
 
 - 日期：2026-10-27
