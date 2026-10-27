@@ -18,6 +18,7 @@ if (
 process.env.DATABASE_URL =
   postgresUrl || `file:${resolve(cache, `e2e-${randomUUID()}.db`).replaceAll('\\', '/')}`;
 process.env.WEB_ORIGIN = 'http://127.0.0.1:5174';
+process.env.AUTH_LIMIT_PER_15M = '10000';
 process.env.AI_ENABLED = 'false';
 process.env.EMAIL_DELIVERY = 'mock';
 process.env.EMAIL_HMAC_SECRET = 'a1'.repeat(32);

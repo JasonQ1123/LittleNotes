@@ -132,15 +132,20 @@ export class SessionGuard implements CanActivate {
 @Injectable()
 export class AuthService {
   private attempts = new Map<string, { count: number; until: number }>();
+  private readonly attemptLimit = Number(process.env.AUTH_LIMIT_PER_15M || 40);
   constructor(
     private db: Database,
     private email: EmailService,
-  ) {}
+  ) {
+    if (!Number.isSafeInteger(this.attemptLimit) || this.attemptLimit < 1)
+      throw new Error('AUTH_LIMIT_PER_15M 必须是正整数');
+  }
   limit(ip: string) {
     const now = Date.now();
     for (const [key, value] of this.attempts) if (value.until < now) this.attempts.delete(key);
     const entry = this.attempts.get(ip) || { count: 0, until: now + 15 * 60_000 };
-    if (++entry.count > 40) throw new HttpException('尝试次数较多，请 15 分钟后再试', 429);
+    if (++entry.count > this.attemptLimit)
+      throw new HttpException('尝试次数较多，请 15 分钟后再试', 429);
     this.attempts.set(ip, entry);
   }
   async register(dto: RegisterDto) {
