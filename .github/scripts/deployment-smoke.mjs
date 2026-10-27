@@ -14,7 +14,7 @@ const actor = () => {
       method: options.method || (body === undefined ? 'GET' : 'POST'),
       headers: {
         ...(!multipart ? { 'Content-Type': 'application/json' } : {}),
-        Origin: 'https://littlenotes.cn',
+        Origin: 'https://web.littlenotes.cn',
         ...(cookie ? { Cookie: cookie } : {}),
       },
       ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) }),
